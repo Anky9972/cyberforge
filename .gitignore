@@ -1,0 +1,56 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+.dist/
+build/
+
+# Temporary and test files
+test-*.js
+test-*.ps1
+*.bat
+setup-*.sh
+setup-*.ps1
+metadata.json
+
+# Documentation drafts (keep only README.md and CLEANUP_SUMMARY.md)
+*_FIX.md
+*_DEPLOYMENT*.md
+*_VERIFICATION*.md
+*_STATUS*.md
+*_COMPLETE.md
+*_REPORT.md
+*_INDEX.md
+DOCUMENTATION.md
+QUICK_*.md
+PAGES_*.md
+GITHUB_*.md
+THALES_*.md
