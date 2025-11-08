@@ -23,7 +23,7 @@
 
 ### Why CyberForge?
 
-- **🤖 AI-Powered Analysis**: Mistral AI for vulnerability detection and code analysis
+- **🤖 AI-Powered Analysis**: Ollama (Local) & Mistral AI for vulnerability detection
 - **🔍 Real AST Analysis**: Multi-language support (JS, Python, Java) with actual parsing
 - **⚡ Coverage-Guided Fuzzing**: Intelligent input generation with 50% faster campaigns
 - **🐛 Crash Deduplication**: Reduces 10,000 crashes to 50 unique issues (95% reduction)
@@ -31,6 +31,7 @@
 - **🧪 Auto Test Generation**: Instant regression tests for Jest, pytest, JUnit, Mocha, Go
 - **🔌 API Fuzzing**: OAuth2/JWT-aware replay from Postman/HAR files
 - **🎯 Production Ready**: Singleton services, full TypeScript types, zero config
+- **📧 Email Notifications**: SMTP integration for vulnerability alerts
 
 ---
 
@@ -114,9 +115,10 @@ These production-ready features deliver immediate value:
 
 ### Prerequisites
 
-- **Node.js 18+** (LTS recommended)
+- **Node.js 18+** (LTS recommended) - *Currently using Node.js v24.11.0*
 - **PostgreSQL 14+** (for database)
-- **Mistral AI API Key** ([Get one free](https://console.mistral.ai/))
+- **Ollama** (for local AI) - [Install from ollama.ai](https://ollama.ai)
+- **Mistral AI API Key** (optional fallback) - [Get one free](https://console.mistral.ai/)
 
 ### Installation
 
@@ -134,22 +136,50 @@ npm install
 cd ..
 
 # 4. Configure environment variables
-# Create .env file in root:
-DATABASE_URL="postgresql://user:password@localhost:5432/cyberforge"
-MISTRAL_API_KEY="your_mistral_api_key"
-JWT_SECRET="your_jwt_secret_key"
+# Create .env file in root (or copy from .env.example):
+DATABASE_URL="postgresql://postgres:password@localhost:5432/cyberforge"
+PORT=3002
 
-# 5. Initialize database
+# AI Provider Configuration
+AI_PROVIDER=ollama
+OLLAMA_API_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2:3b
+
+# Optional: Mistral AI fallback
+MISTRAL_API_KEY="your_mistral_api_key"
+AI_FALLBACK_ENABLED=false
+
+# Security
+JWT_SECRET="your_jwt_secret_key_min_32_chars"
+JWT_REFRESH_SECRET="your_refresh_secret_key"
+SESSION_SECRET="your_session_secret"
+
+# Email Configuration (Optional)
+EMAIL_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+FROM_EMAIL=noreply@cyberforge.dev
+FROM_NAME=CyberForge Security
+
+# 5. Install and setup Ollama
+# Download from https://ollama.ai
+ollama pull llama3.2:3b
+
+# 6. Initialize database
 npx prisma migrate dev
 
-# 6. Start the backend server (Terminal 1)
+# 7. Start the backend server (Terminal 1)
 cd server
 npm run dev
+# Backend runs on http://localhost:3002
 
-# 7. Start the frontend (Terminal 2)
+# 8. Start the frontend (Terminal 2)
 npm run dev
+# Frontend runs on http://localhost:5173
 
-# 8. Open your browser
+# 9. Open your browser
 # Navigate to http://localhost:5173
 ```
 
@@ -246,8 +276,15 @@ CyberForge executes a **comprehensive automated security analysis**:
 - JWT authentication with bcrypt
 
 **AI Integration**
-- Mistral AI API (primary)
-- Gemini API (optional fallback)
+- Ollama (Local AI - Primary)
+  - llama3.2:3b model
+  - No API costs, runs locally
+  - Privacy-focused
+- Mistral AI API (Fallback - Optional)
+  - mistral-medium-2508 model
+  - Cloud-based alternative
+- Gemini API (Optional)
+  - Google's generative AI
 - Multi-agent orchestration
 - Intelligent fallback mechanisms
 
@@ -257,20 +294,28 @@ CyberForge executes a **comprehensive automated security analysis**:
 ┌─────────────────┐
 │  User Interface │
 │   (React App)   │
+│  Port: 5173     │
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
 │  API Gateway    │
 │   (Express)     │
+│  Port: 3002     │
 └────────┬────────┘
          │
-         ├─────────────┬──────────────┬──────────────┐
-         ▼             ▼              ▼              ▼
-┌────────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
-│ AST Parser │  │ Mistral  │  │  Fuzzing │  │   CVE    │
-│  (Babel)   │  │    AI    │  │  Engine  │  │Database  │
-└────────────┘  └──────────┘  └──────────┘  └──────────┘
+         ├─────────────┬──────────────┬──────────────┬──────────────┐
+         ▼             ▼              ▼              ▼              ▼
+┌────────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+│ AST Parser │  │  Ollama  │  │  Fuzzing │  │   CVE    │  │   Email  │
+│  (Babel)   │  │  Local   │  │  Engine  │  │ Database │  │  Service │
+└────────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘
+                      │
+                      ▼
+                ┌──────────┐
+                │ Mistral  │
+                │(Fallback)│
+                └──────────┘
 ```
 
 ---
@@ -298,24 +343,57 @@ CyberForge executes a **comprehensive automated security analysis**:
 
 ## 💻 Demo
 
+### Dashboard Screenshots
+
+**🎨 Live Fuzzing Monitor**
+- Real-time WebSocket updates
+- 5 live metric cards (exec/sec, coverage, corpus size, crashes)
+- Interactive charts with time range selector
+- Recent crash list with stack traces
+
+**📊 Enhanced Vulnerability Report**
+- 4-tab interface (Overview, Details, Metrics, Exploitability)
+- 6 chart types (Pie, Bar, Area, Line, Scatter, Radar)
+- CVSS scoring and timeline analysis
+- Code snippets with syntax highlighting
+
+**🐛 Crash Deduplication Dashboard**
+- Clustering visualization with 95% reduction
+- Advanced filtering and search
+- Fingerprint display (stack hash, exception type)
+- Minimization progress tracking
+
+**📦 Corpus Manager Dashboard**
+- Evolution timeline (Area chart)
+- Coverage vs Crashes scatter plot
+- Golden seed promotion
+- Upload/Download functionality
+
+**🧪 Test Exporter Dashboard**
+- 5 framework support (Jest, Pytest, JUnit, Mocha, Go)
+- Configuration UI with code preview
+- Generate/Copy/Download/Run actions
+- Syntax-highlighted code blocks
+
+**🌐 API Replayer Dashboard**
+- Request sequence viewer with timeline
+- 5 mutation strategies (headers, body, params, auth, sequence)
+- OAuth2 flow tracker (4-step visualization)
+- HAR/Postman import support
+
+**📜 SARIF Viewer Dashboard**
+- GitHub PR annotation preview
+- CI badge generator with live preview
+- Inline code snippets with suggested fixes
+- Filter by severity, search by rule ID
+
 ### Live Demo
 
-🌐 **[Try FuzzForge Live](https://shashwat-srivastav.github.io/fuzzforge/)**
+🌐 **[Try CyberForge Live](https://shashwat-srivastav.github.io/cyberforge/)** *(Coming Soon)*
 
 ### Demo Video
 
-*(Coming soon)*
-
-### Screenshots
-
-**Main Dashboard**
-![Dashboard](docs/images/dashboard.png)
-
-**Code Knowledge Graph**
-![CKG](docs/images/ckg.png)
-
-**Vulnerability Report**
-![Report](docs/images/report.png)
+*(Coming Soon)*
 
 ---
 
@@ -324,7 +402,7 @@ CyberForge executes a **comprehensive automated security analysis**:
 ### Quick Links
 
 - [Installation Guide](#installation)
-- [Usage Guide](#using-fuzzforge)
+- [Usage Guide](#using-cyberforge)
 - [API Documentation](docs/API.md)
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [Contributing Guide](CONTRIBUTING.md)
@@ -333,7 +411,7 @@ CyberForge executes a **comprehensive automated security analysis**:
 
 #### Multi-Agent System
 
-FuzzForge uses specialized AI agents, each with expert-level prompting:
+CyberForge uses specialized AI agents, each with expert-level prompting:
 
 1. **Reconnaissance Agent** - Senior offensive security engineer
 2. **API Security Agent** - Principal API security architect (OWASP specialist)
@@ -344,7 +422,7 @@ FuzzForge uses specialized AI agents, each with expert-level prompting:
 
 #### Intelligent Fallbacks
 
-FuzzForge **never crashes**. Every component has graceful degradation:
+CyberForge **never crashes**. Every component has graceful degradation:
 
 - ⚡ Parallel execution → ⚠️ Sequential fallback
 - 🎯 AI target selection → ⚠️ Heuristic analysis
@@ -358,22 +436,45 @@ FuzzForge **never crashes**. Every component has graceful degradation:
 ### Project Structure
 
 ```
-fuzzforge/
+cyberforge/
 ├── components/          # React UI components
+│   ├── auth/           # Authentication modals
+│   ├── icons/          # Custom icon components
 │   ├── AgentCard.tsx
 │   ├── CKGVisualizer.tsx
 │   ├── VulnerabilityReport.tsx
+│   ├── EnhancedVulnerabilityReport.tsx
+│   ├── CrashDedupDashboard.tsx
+│   ├── CorpusManagerDashboard.tsx
+│   ├── TestExporterDashboard.tsx
+│   ├── APIReplayerDashboard.tsx
+│   ├── SARIFViewerDashboard.tsx
+│   ├── LiveFuzzingDashboard.tsx
 │   └── ...
 ├── services/           # Core business logic
-│   ├── geminiService.ts
+│   ├── aiProviderService.ts
 │   ├── astAnalyzer.ts
 │   ├── fuzzingEngine.ts
+│   ├── crashDeduplication.ts
+│   ├── corpusManager.ts
+│   ├── sarifGenerator.ts
+│   ├── testExporter.ts
+│   ├── apiReplayer.ts
+│   ├── emailService.ts
 │   └── ...
 ├── hooks/              # React hooks
 │   └── useFuzzingWorkflow.tsx
+├── contexts/           # React contexts
+│   └── AuthContext.tsx
 ├── server/             # Backend API
-│   └── api.js
+│   ├── api-enhanced.js  # Main API server
+│   ├── middleware/      # Auth, logging, rate limiting
+│   └── routes/          # API route handlers
+├── prisma/             # Database schema & migrations
+│   └── schema.prisma
 ├── demo-codebase/      # Test data
+├── .env                # Environment variables (not in git)
+├── .env.example        # Environment template
 └── ...
 ```
 
@@ -382,11 +483,22 @@ fuzzforge/
 ```bash
 # Development
 npm run dev              # Start frontend (http://localhost:5173)
-npm run dev:server       # Start backend (http://localhost:3001)
+npm run dev:server       # Start backend (http://localhost:3002)
+npm run dev:all          # Start both frontend & backend concurrently
+
+# Database
+npm run db:generate      # Generate Prisma client
+npm run db:push          # Push schema to database
+npm run db:migrate       # Run migrations
+npm run db:studio        # Open Prisma Studio
 
 # Production
 npm run build            # Build for production
 npm run preview          # Preview production build
+
+# Testing
+npm run test:ollama      # Test Ollama connection
+npm run setup:ollama     # Setup instructions for Ollama
 
 # Code Quality
 npm run lint             # Run ESLint
@@ -396,16 +508,63 @@ npm run type-check       # TypeScript type checking
 
 ### Environment Variables
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory (copy from `.env.example`):
 
 ```env
-# Backend API Configuration
-MISTRAL_API_KEY=your_mistral_api_key_here
-PORT=3001
+# Application
+NODE_ENV=development
+APP_NAME=CyberForge
+APP_VERSION=2.0.0
+PORT=3002
+HOST=localhost
 FRONTEND_URL=http://localhost:5173
 
-# Frontend Configuration  
-VITE_API_PROXY_URL=http://localhost:3001/api/analyze
+# Database
+DATABASE_URL=postgresql://postgres:password@localhost:5432/cyberforge
+REDIS_URL=redis://localhost:6379
+
+# Security
+JWT_SECRET=your_super_secret_jwt_key_min_32_chars
+JWT_REFRESH_SECRET=your_super_secret_refresh_token_key
+JWT_EXPIRY=24h
+JWT_REFRESH_EXPIRY=7d
+SESSION_SECRET=dev_session_secret_change_in_production
+BCRYPT_ROUNDS=10
+
+# AI Providers
+AI_PROVIDER=ollama
+AI_FALLBACK_ENABLED=false
+AI_FALLBACK_PROVIDER=mistral
+
+# Ollama (Primary - Local)
+OLLAMA_API_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2:3b
+OLLAMA_TIMEOUT_MS=300000
+
+# Mistral AI (Fallback - Optional)
+MISTRAL_API_KEY=your_mistral_api_key
+MISTRAL_MODEL=mistral-medium-2508
+
+# Email Configuration (Optional)
+EMAIL_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+FROM_EMAIL=noreply@cyberforge.dev
+FROM_NAME=CyberForge Security
+
+# File Upload
+MAX_FILE_SIZE_MB=50
+MAX_ZIP_SIZE_MB=100
+
+# Feature Flags
+ENABLE_USER_REGISTRATION=true
+ENABLE_API_KEYS=true
+ENABLE_AUDIT_LOG=true
+
+# Frontend (Vite)
+VITE_API_PROXY_URL=http://localhost:3002/api/analyze
 ```
 
 ---
@@ -441,6 +600,11 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - [x] Parallel execution with fallbacks
 - [x] VM-based fuzzing for JS/TS
 - [x] Professional vulnerability reporting
+- [x] 7 modern dashboards with charts
+- [x] User authentication system
+- [x] Email notification system
+- [x] Database integration with Prisma
+- [x] Ollama local AI integration
 
 ### 🚧 Phase 2: Enhanced Fuzzing (In Progress)
 - [ ] Python VM integration for real Python fuzzing
@@ -452,15 +616,20 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - [ ] GitHub Actions CI/CD integration
 - [ ] VS Code extension
 - [ ] CLI tool for DevOps
-- [ ] SARIF export format
+- [x] SARIF export format (Complete)
 - [ ] GitLab/Bitbucket support
+- [ ] Docker deployment optimization
+- [ ] Kubernetes support
 
 ### 📋 Phase 4: Enterprise Features (Future)
-- [ ] Multi-user support
+- [ ] Multi-user support with roles
 - [ ] Project history tracking
 - [ ] Custom rule engine
 - [ ] API for programmatic access
 - [ ] JIRA/ServiceNow integration
+- [ ] SSO/SAML authentication
+- [ ] Advanced reporting & analytics
+- [ ] Webhook integrations
 
 ---
 
@@ -471,15 +640,44 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 **Port Already in Use**
 ```bash
 # Change the port in .env
-PORT=3002
+PORT=3003  # Or any available port
+
+# Also update VITE_API_PROXY_URL
+VITE_API_PROXY_URL=http://localhost:3003/api/analyze
+```
+
+**Ollama Not Running**
+```bash
+# Check if Ollama is installed
+ollama --version
+
+# Start Ollama service
+ollama serve
+
+# Pull the model
+ollama pull llama3.2:3b
+
+# Test connection
+npm run test:ollama
+```
+
+**AI Provider Issues**
+```bash
+# Switch to Mistral AI fallback
+AI_PROVIDER=mistral
+MISTRAL_API_KEY=your_actual_key_here
+
+# Or enable automatic fallback
+AI_FALLBACK_ENABLED=true
 ```
 
 **API Key Not Working**
 ```bash
 # Verify your .env file
-cat .env
+cat .env  # Linux/Mac
+Get-Content .env  # Windows PowerShell
 
-# Should contain:
+# Should contain (for Mistral fallback):
 MISTRAL_API_KEY=your_actual_key_here
 ```
 
@@ -492,6 +690,34 @@ MISTRAL_API_KEY=your_actual_key_here
 - Real fuzzing only supports JavaScript/TypeScript
 - Other languages use LLM simulation (still effective)
 - Check console for error messages
+- Ensure Ollama is running: `ollama serve`
+
+**Database Connection Issues**
+```bash
+# Check PostgreSQL is running
+# Windows: Check Services
+# Linux/Mac: systemctl status postgresql
+
+# Test connection
+psql -U postgres -d cyberforge
+
+# Run migrations
+npm run db:migrate
+
+# View database in browser
+npm run db:studio
+```
+
+**Email Not Sending**
+```bash
+# Check email configuration in .env
+EMAIL_ENABLED=true
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password  # Use App Password, not regular password
+
+# For Gmail, enable 2FA and generate App Password:
+# https://myaccount.google.com/apppasswords
+```
 
 ### Getting Help
 
@@ -509,12 +735,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
+- **Ollama** - Local AI inference platform
 - **Mistral AI** - Powerful language models
 - **OWASP** - API Security Top 10 standards
 - **Google Project Zero** - Fuzzing methodology inspiration
 - **AFL++** - Coverage-guided fuzzing concepts
 - **GitHub** - SARIF standard for security reports
+- **Prisma** - Next-generation ORM
 - **React & Vite Teams** - Amazing development tools
+- **recharts** - Beautiful chart library
 
 ---
 
