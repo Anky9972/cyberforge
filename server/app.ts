@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { PrismaClient } from '@prisma/client';
 
 // Import middleware
@@ -14,11 +16,16 @@ import { apiRateLimiter } from './middleware/rateLimiter.js';
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/projects.js';
 import scanRoutes from './routes/scans.js';
+import vulnerabilityRoutes from './routes/vulnerabilities.js';
+import scanMetricsRoutes from './routes/scanMetrics.js';
 
 // Import services
 import { aiService } from '../services/aiProviderService.js';
 
-dotenv.config();
+// Load environment variables from root directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 const prisma = new PrismaClient();
@@ -36,7 +43,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const allowedOrigins = [
   FRONTEND_URL,
   'http://localhost:3000',
-  'http://localhost:3001',
+  'http://localhost:3002',
   'http://localhost:5173',
   'https://shashwat-srivastav.github.io'
 ];
@@ -97,6 +104,8 @@ app.get('/', (req, res) => {
       analyze: '/api/analyze',
       projects: '/api/projects (authenticated)',
       scans: '/api/scans (authenticated)',
+      vulnerabilities: '/api/vulnerabilities (authenticated)',
+      scanMetrics: '/api/scan-metrics (authenticated)',
     }
   });
 });
@@ -110,10 +119,24 @@ app.use('/api/projects', projectRoutes);
 // Scan routes (requires authentication)
 app.use('/api/scans', scanRoutes);
 
+// Vulnerability routes (requires authentication)
+app.use('/api/vulnerabilities', vulnerabilityRoutes);
+
+// Scan metrics routes (requires authentication)
+app.use('/api/scan-metrics', scanMetricsRoutes);
+
 // Legacy analysis endpoint (backward compatible)
 app.post('/api/analyze', async (req, res) => {
   try {
     const { systemPrompt, userPrompt, responseFormat, provider } = req.body;
+
+    // If a specific provider is requested, validate it's available to avoid runtime errors
+    if (provider) {
+      const available = aiService.getAvailableProviders();
+      if (!available.includes(provider)) {
+        return res.status(400).json({ error: `Requested AI provider '${provider}' is not configured. Available providers: ${available.join(', ') || 'none'}` });
+      }
+    }
 
     if (!systemPrompt || !userPrompt) {
       return res.status(400).json({ error: 'systemPrompt and userPrompt are required' });

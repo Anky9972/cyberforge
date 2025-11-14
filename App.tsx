@@ -9,9 +9,11 @@ import WorkflowStepper from './components/WorkflowStepper';
 import AgentCard from './components/AgentCard';
 import VulnerabilityReport from './components/VulnerabilityReport';
 import EnhancedFuzzingDashboard from './components/EnhancedFuzzingDashboard';
+import AnalysisOverview from './components/AnalysisOverview';
 import { NavHeader } from './components/NavHeader';
 import { AuthManager } from './components/auth/AuthManager';
 import { useFuzzingWorkflow } from './hooks/useFuzzingWorkflow';
+import GraphViewerPage from './components/GraphViewerPage';
 
 // Main Dashboard/Analysis Page Component
 const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
@@ -23,12 +25,47 @@ const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
         isProcessing,
         error,
         startFuzzing,
-        resetWorkflow
+        resetWorkflow,
+        completedSteps,
+        navigateToStep,
+        viewingStep,
+        analysisStartTime,
+        analysisEndTime,
+        fileName,
+        fileCount,
+        linesOfCode,
     } = useFuzzingWorkflow();
+
+    const navigate = useNavigate();
 
     const handleFileUpload = (file: File) => {
         startFuzzing(file);
     };
+
+    const handleExportReport = () => {
+        if (report) {
+            const reportData = JSON.stringify(report, null, 2);
+            const blob = new Blob([reportData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `cyberforge-report-${fileName}-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    };
+
+    // Determine which step content to show
+    const displayStep = viewingStep !== null ? viewingStep : currentStepIndex;
+    const relevantLogs = agentLogs.filter((_, index) => {
+        if (viewingStep !== null) {
+            return index <= viewingStep;
+        }
+        return true;
+    });
+
+    // Check if analysis is complete
+    const isAnalysisComplete = report !== null && !isProcessing;
 
     return (
         <div className="bg-gray-900 text-white min-h-screen font-sans">
@@ -45,7 +82,12 @@ const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
 
                 <main className="space-y-8">
                     <section className="max-w-4xl mx-auto">
-                        <WorkflowStepper steps={steps} currentStepIndex={currentStepIndex} />
+                        <WorkflowStepper 
+                            steps={steps} 
+                            currentStepIndex={currentStepIndex} 
+                            onStepClick={navigateToStep}
+                            completedSteps={completedSteps}
+                        />
                     </section>
 
                     {agentLogs.length === 0 && !report && (
@@ -55,9 +97,27 @@ const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
                     )}
 
                     {error && (
-                        <section className="max-w-3xl mx-auto bg-red-900 border border-red-700 p-4 rounded-lg text-red-200">
-                            <h2 className="font-bold mb-2">⚠️ Analysis Error</h2>
+                        <section className="max-w-3xl mx-auto bg-red-900 border border-red-700 p-4 rounded-lg text-red-200 animate-fade-in">
+                            <h2 className="font-bold mb-2 text-xl">⚠️ Analysis Error</h2>
                             <p className="mb-3">{error}</p>
+                            
+                            {error.includes('synthesize') && (
+                                <div className="bg-red-800 p-3 rounded mt-2 text-sm">
+                                    <p className="font-semibold mb-1">💡 Possible Causes:</p>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        <li>Ollama might be starting up (takes 30-60 seconds)</li>
+                                        <li>The AI model timed out processing complex code</li>
+                                        <li>Network connection to Ollama interrupted</li>
+                                    </ul>
+                                    <p className="font-semibold mt-3 mb-1">✅ Solutions:</p>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        <li>Check if Ollama is running: <code className="bg-gray-800 px-2 py-1 rounded">ollama serve</code></li>
+                                        <li>Wait 60 seconds and click "Try Again"</li>
+                                        <li>Try uploading a smaller code sample</li>
+                                    </ul>
+                                </div>
+                            )}
+                            
                             {error.includes('rate limit') && (
                                 <div className="bg-red-800 p-3 rounded mt-2 text-sm">
                                     <p className="font-semibold mb-1">💡 Quick Fixes:</p>
@@ -69,18 +129,41 @@ const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
                                     </ul>
                                 </div>
                             )}
-                            <button
-                                onClick={resetWorkflow}
-                                className="mt-3 bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-colors duration-300"
-                            >
-                                Try Again
-                            </button>
+                            
+                            {error.includes('timeout') && (
+                                <div className="bg-red-800 p-3 rounded mt-2 text-sm">
+                                    <p className="font-semibold mb-1">⏱️ Timeout occurred:</p>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        <li>The operation took longer than 60 seconds</li>
+                                        <li>Try with a smaller codebase</li>
+                                        <li>Check if Ollama is responding: <code className="bg-gray-800 px-2 py-1 rounded">curl http://localhost:11434</code></li>
+                                    </ul>
+                                </div>
+                            )}
+                            
+                            <div className="flex gap-3 mt-4">
+                                <button
+                                    onClick={() => {
+                                        resetWorkflow();
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    className="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-6 rounded transition-colors duration-300"
+                                >
+                                    🔄 Try Again
+                                </button>
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded transition-colors duration-300"
+                                >
+                                    🔃 Reload Page
+                                </button>
+                            </div>
                         </section>
                     )}
 
-                    {agentLogs.length > 0 && (
+                    {agentLogs.length > 0 && !isAnalysisComplete && (
                         <section className="grid gap-8 md:grid-cols-2">
-                            {agentLogs.map((log, index) => (
+                            {relevantLogs.map((log, index) => (
                                 <AgentCard key={index} agentName={log.agentName} icon={log.icon} isLoading={log.isLoading}>
                                     {log.content}
                                 </AgentCard>
@@ -88,15 +171,25 @@ const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
                         </section>
                     )}
                     
-                    {report && (
-                        <section className="max-w-4xl mx-auto col-span-1 md:col-span-2">
-                            <VulnerabilityReport report={report} />
-                             <div className="mt-8 text-center">
+                    {isAnalysisComplete && (
+                        <section className="animate-fade-in">
+                            <AnalysisOverview
+                                agentLogs={agentLogs}
+                                report={report}
+                                fileName={fileName}
+                                analysisStartTime={analysisStartTime}
+                                analysisEndTime={analysisEndTime}
+                                fileCount={fileCount}
+                                linesOfCode={linesOfCode}
+                                onNavigateToDashboard={() => navigate('/dashboard')}
+                                onExportReport={handleExportReport}
+                            />
+                            <div className="mt-8 text-center">
                                 <button
                                     onClick={resetWorkflow}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors duration-300"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors duration-300 transform hover:scale-105"
                                 >
-                                    Analyze Another Project
+                                    🔄 Analyze Another Project
                                 </button>
                             </div>
                         </section>
@@ -155,6 +248,9 @@ const App: React.FC = () => {
                 
                 {/* Analysis/Dashboard Page */}
                 <Route path="/analyze" element={<AnalysisPage onLogin={handleLogin} />} />
+                
+                {/* Graph Viewer Page */}
+                <Route path="/graph-viewer" element={<GraphViewerPage />} />
                 
                 {/* Documentation Page */}
                 <Route path="/docs" element={<DocumentationPage />} />

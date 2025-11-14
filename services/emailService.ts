@@ -1,7 +1,7 @@
 // Email Service with AI-Powered Dynamic Content
 import nodemailer from 'nodemailer';
 // @ts-ignore - GoogleGenerativeAI types may vary
-import { GoogleGenerativeAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface EmailOptions {
   to: string;
@@ -24,7 +24,7 @@ interface VulnerabilityData {
 }
 
 export class EmailService {
-  private transporter: any;
+  private transporter: any | null;
   private genAI: GoogleGenerativeAI | null = null;
   private fromEmail: string;
   private fromName: string;
@@ -34,15 +34,27 @@ export class EmailService {
     this.fromName = process.env.FROM_NAME || 'CyberForge Security';
 
     // Configure email transporter
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USERNAME,
-        pass: process.env.SMTP_PASSWORD,
-      },
-    });
+    const emailEnabled = process.env.EMAIL_ENABLED !== 'false';
+    const smtpUser = process.env.SMTP_USERNAME;
+    const smtpPass = process.env.SMTP_PASSWORD;
+
+    if (!emailEnabled) {
+      console.info('Email disabled via configuration; emails will not be sent.');
+      this.transporter = null;
+    } else if (!smtpUser || !smtpPass) {
+      console.warn('SMTP credentials are missing; emails will be skipped.');
+      this.transporter = null;
+    } else {
+      this.transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+    }
 
     // Initialize Gemini AI for dynamic content
     if (process.env.GEMINI_API_KEY) {
@@ -88,6 +100,11 @@ export class EmailService {
    */
   private async sendEmail(options: EmailOptions): Promise<void> {
     try {
+      if (!this.transporter) {
+        console.info(`Skipping email to ${options.to} (transporter not configured): ${options.subject}`);
+        return;
+      }
+
       await this.transporter.sendMail({
         from: `"${this.fromName}" <${this.fromEmail}>`,
         to: options.to,
@@ -95,10 +112,12 @@ export class EmailService {
         html: options.html,
         text: options.text,
       });
+
       console.log(`Email sent to ${options.to}: ${options.subject}`);
     } catch (error) {
       console.error('Email sending failed:', error);
-      throw new Error('Failed to send email');
+      // Do not throw to avoid breaking user flows in development; log and continue
+      return;
     }
   }
 

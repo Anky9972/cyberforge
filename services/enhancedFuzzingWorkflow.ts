@@ -17,28 +17,35 @@ let CVEDatabaseIntegration: any;
 let CoverageFuzzResult: any;
 let SymbolicResult: any;
 
-// Only import in Node.js environment (not browser)
-if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+// Only import in Node.js environment (not browser) - Check for import.meta to detect browser
+const isBrowser = typeof window !== 'undefined' && typeof import.meta !== 'undefined';
+
+if (!isBrowser && typeof process !== 'undefined' && process.versions && process.versions.node) {
     try {
         const coverageModule = require('./coverageGuidedFuzzing');
         CoverageGuidedFuzzingEngine = coverageModule.CoverageGuidedFuzzingEngine;
         CoverageFuzzResult = coverageModule.CoverageFuzzResult;
+        console.log('✅ Coverage-guided fuzzing module loaded');
     } catch (e) {
-        console.warn('⚠️ Coverage-guided fuzzing not available');
+        console.warn('⚠️ Coverage-guided fuzzing not available:', e);
     }
     try {
         const symbolicModule = require('./symbolicExecution');
         SymbolicExecutionEngine = symbolicModule.SymbolicExecutionEngine;
         SymbolicResult = symbolicModule.SymbolicResult;
+        console.log('✅ Symbolic execution module loaded');
     } catch (e) {
-        console.warn('⚠️ Symbolic execution not available');
+        console.warn('⚠️ Symbolic execution not available:', e);
     }
     try {
         const cveModule = require('./cveIntegration');
         CVEDatabaseIntegration = cveModule.CVEDatabaseIntegration;
+        console.log('✅ CVE integration module loaded');
     } catch (e) {
-        console.warn('⚠️ CVE integration not available');
+        console.warn('⚠️ CVE integration not available:', e);
     }
+} else {
+    console.log('🌐 Running in browser mode - Enhanced features disabled');
 }
 
 export interface EnhancedFuzzingConfig {
@@ -128,9 +135,12 @@ export class EnhancedFuzzingWorkflow {
         };
 
         try {
-            // Race between execution and timeout
+            // Race between execution and timeout (30 seconds for browser mode, 90 for Node)
+            const timeoutMs = isBrowser ? 30000 : 90000;
+            console.log(`⏱️ Enhanced fuzzing timeout set to ${timeoutMs/1000} seconds (browser mode: ${isBrowser})`);
+            
             const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('Enhanced fuzzing timeout after 30 seconds')), 30000);
+                setTimeout(() => reject(new Error(`Enhanced fuzzing timeout after ${timeoutMs/1000} seconds`)), timeoutMs);
             });
 
             return await Promise.race([

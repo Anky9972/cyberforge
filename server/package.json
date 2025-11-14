@@ -2,16 +2,19 @@
   "name": "cyberforge-api",
   "version": "2.0.0",
   "type": "module",
-  "main": "api-enhanced.js",
+  "main": "dist/app.js",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "start": "node api-enhanced.js",
-    "dev": "node --watch api-enhanced.js"
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "dev": "tsx watch app.ts",
+    "dev:old": "node --watch api-enhanced.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.9.1",
+    "@google/generative-ai": "^0.24.1",
+    "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -19,6 +22,7 @@
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
     "ioredis": "^5.3.2",
+    "istanbul-lib-instrument": "^6.0.1",
     "joi": "^17.12.1",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
@@ -30,14 +34,26 @@
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "tree-sitter": "^0.21.0",
-    "tree-sitter-python": "^0.21.0",
-    "tree-sitter-java": "^0.21.0",
     "tree-sitter-cpp": "^0.22.0",
-    "istanbul-lib-instrument": "^6.0.1",
+    "tree-sitter-java": "^0.21.0",
+    "tree-sitter-python": "^0.21.0",
     "winston": "^3.11.0",
     "z3-solver": "^4.12.4"
   },
   "devDependencies": {
-    "prisma": "^5.9.1"
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/morgan": "^1.9.9",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^20.11.5",
+    "@types/nodemailer": "^6.4.14",
+    "@types/passport": "^1.0.16",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/passport-local": "^1.0.38",
+    "prisma": "^5.22.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
   }
 }

@@ -11,7 +11,7 @@ import { ASTAnalyzer, type SecurityPattern } from './astAnalyzer';
 import { JavaScriptFuzzingEngine, generateVulnerabilityFromFuzz, type FuzzResult } from './fuzzingEngine';
 
 // API Configuration - Using secure backend proxy
-const API_PROXY_URL = import.meta.env.VITE_API_PROXY_URL || "http://localhost:3001/api/analyze";
+const API_PROXY_URL = import.meta.env.VITE_API_PROXY_URL || "http://localhost:3002/api/analyze";
 
 console.log("🔧 Module loaded - Using API Proxy:", API_PROXY_URL);
 
@@ -120,9 +120,12 @@ async function callMistralAPI(systemPrompt: string, userPrompt: string, response
     try {
         console.log("📤 Sending request to API proxy...");
         
-        // Add timeout wrapper (300 seconds for Ollama - local models can be very slow with complex prompts)
+        // Increased timeout for Ollama (90 seconds - complex prompts need time)
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 300000); // Increased from 180s to 300s
+        const timeoutId = setTimeout(() => {
+            console.warn('⏱️ Request timeout after 90s, aborting...');
+            controller.abort();
+        }, 90000);
         
         const response = await fetch(API_PROXY_URL, {
             method: "POST",
@@ -272,6 +275,7 @@ export async function generateCKGWithAST(
     codeFiles: Map<string, { code: string; language: string; filename: string }>
 ): Promise<CKGData> {
     console.log("🔬 Using AST-based analysis (REAL code parsing, not LLM guessing)");
+    console.log(`📊 Processing ${codeFiles.size} files for CKG generation`);
     
     const analyzer = new ASTAnalyzer();
     const allNodes: CKGNode[] = [];
@@ -280,6 +284,7 @@ export async function generateCKGWithAST(
     
     // First, get accurate structure from AST
     for (const [key, { code, language, filename }] of codeFiles.entries()) {
+        console.log(`🔍 Analyzing file: ${filename} (${language})`);
         try {
             let astResult: CKGData;
             
@@ -314,9 +319,11 @@ export async function generateCKGWithAST(
     ).map(s => JSON.parse(s));
     
     console.log(`✅ AST Analysis: ${astSuccessCount.success} files parsed, ${astSuccessCount.failed} failed`);
+    console.log(`📈 Found ${uniqueNodes.length} unique nodes and ${uniqueEdges.length} unique edges`);
     
     // If AST found something, use it as primary data
     if (uniqueNodes.length > 0) {
+        console.log(`✅ Returning AST-based CKG with ${uniqueNodes.length} nodes`);
         return {
             summary: `🔬 AST-VERIFIED Analysis: Found ${uniqueNodes.length} functions with ${uniqueEdges.length} real call relationships (parsed from actual code structure, not LLM inference). Accuracy: ${astSuccessCount.success}/${astSuccessCount.success + astSuccessCount.failed} files successfully analyzed.`,
             nodes: uniqueNodes,
@@ -890,6 +897,8 @@ Prioritize functions that:
 - Avoid functions with no external input
 - Focus on **attack surface** visible to unauthenticated/low-privilege users
 - If no suitable targets found, return empty array
+- **IMPORTANT**: For language field, use ONLY one of these exact values: "C", "C++", "Python", "JavaScript", "TypeScript", "Java", "Go", "Rust", "PHP"
+- Do NOT use combined values like "C/C++" - choose either "C" or "C++"
 
 Return ONLY valid JSON:
 {
@@ -897,7 +906,7 @@ Return ONLY valid JSON:
     {
       "functionName": "string (exact function name from CKG)",
       "reasoning": "string (why this is a high-value target - input type, complexity, impact)",
-      "language": "string (C|C++|Python|JavaScript|TypeScript|Java|Go|Rust)"
+      "language": "string (MUST be one of: C|C++|Python|JavaScript|TypeScript|Java|Go|Rust|PHP)"
     }
   ]
 }`;
@@ -1366,10 +1375,34 @@ export async function simulateFuzzingAndGenerateReport(ckgSummary: string, recon
 
     try {
         const responseText = await callMistralAPI(SIMULATE_AND_REPORT_PROMPT, userPrompt, 'json');
-        const cleanedJSON = extractJSON(responseText);
+        let cleanedJSON = extractJSON(responseText);
+        
+        // Try to parse JSON with multiple attempts
+        let parsed: any;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                parsed = JSON.parse(cleanedJSON);
+                break; // Success!
+            } catch (parseError) {
+                console.warn(`⚠️ JSON parse attempt ${attempt}/3 failed:`, parseError);
+                if (attempt < 3) {
+                    // Try more aggressive cleaning
+                    cleanedJSON = cleanedJSON
+                        .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+                        .replace(/\n/g, ' ') // Remove newlines
+                        .replace(/\\/g, '\\\\') // Escape backslashes
+                        .replace(/[\u0000-\u001F]/g, ''); // Remove control characters
+                }
+            }
+        }
+        
+        if (!parsed) {
+            console.error('❌ All JSON parsing attempts failed');
+            throw new Error('Failed to parse AI response as valid JSON');
+        }
         
         // Validate with Zod schema
-        const validated = VulnerabilityReportSchema.parse(JSON.parse(cleanedJSON));
+        const validated = VulnerabilityReportSchema.parse(parsed);
         const report = validated as VulnerabilityReportData;
         
         if (!report.vulnerabilityTitle || !report.severity) {

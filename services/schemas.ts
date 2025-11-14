@@ -22,11 +22,15 @@ export const CKGDataSchema = z.object({
 // Reconnaissance Schema - More flexible to handle AI variations
 export const ReconFindingSchema = z.object({
     category: z.string().transform(category => {
+        // Handle pipe-separated categories (e.g., "Hardcoded Secret|API_KEY")
+        const baseCategory = category.split('|')[0].trim();
+        
         // Map various AI-generated categories to our standard ones
         const categoryMap: Record<string, string> = {
             'Hardcoded Secret': 'Hardcoded Secret',
             'Hardcoded Secrets': 'Hardcoded Secret',
             'Secret Exposure': 'Hardcoded Secret',
+            'API_KEY': 'Hardcoded Secret',
             'Exposed Path': 'Exposed Path',
             'Path Exposure': 'Exposed Path',
             'Insecure Configuration': 'Insecure Configuration',
@@ -36,13 +40,17 @@ export const ReconFindingSchema = z.object({
             'Cryptographic Vulnerability': 'Vulnerable Pattern',
             'Vulnerable Pattern': 'Vulnerable Pattern',
             'Vulnerability Pattern': 'Vulnerable Pattern',
+            'SQL Injection': 'Vulnerable Pattern',
             'Threat Intel Match': 'Threat Intel Match',
             'Security Vulnerability': 'Vulnerable Pattern',
-            'Information Disclosure': 'Exposed Path'
+            'Information Disclosure': 'Exposed Path',
+            'MEDIUM': 'Insecure Configuration',
+            'HIGH': 'Vulnerable Pattern',
+            'CRITICAL': 'Vulnerable Pattern'
         };
         
         // Return the mapped category or default to 'Vulnerable Pattern'
-        return categoryMap[category] || 'Vulnerable Pattern';
+        return categoryMap[baseCategory] || categoryMap[category] || 'Vulnerable Pattern';
     }),
     description: z.string(),
     recommendation: z.string(),
@@ -53,11 +61,17 @@ export const ReconResponseSchema = z.object({
     findings: z.array(ReconFindingSchema)
 });
 
-// API Security Schema
+// API Security Schema - Flexible to handle various AI response formats
 export const APIFindingSchema = z.object({
-    category: z.string().transform(category => {
+    id: z.union([z.number(), z.string()]).optional().transform(() => undefined),
+    type: z.string().optional().transform(() => undefined),
+    file: z.string().optional().transform(() => undefined),
+    category: z.string().optional().transform(category => {
+        if (!category) return 'Security Misconfiguration';
+        
         // Map similar category names to our expected categories
         const categoryMap: Record<string, string> = {
+            'vulnerability': 'Security Misconfiguration',
             'Unrestricted Resource Consumption': 'Resource Consumption',
             'Improper Inventory Management': 'Inventory Management',
             'Security Misconfiguration': 'Security Misconfiguration',
@@ -69,26 +83,61 @@ export const APIFindingSchema = z.object({
             'Business Flow': 'Business Flow',
             'SSRF': 'SSRF',
             'Inventory Management': 'Inventory Management',
-            'Unsafe Consumption': 'Unsafe Consumption'
+            'Unsafe Consumption': 'Unsafe Consumption',
+            'Insecure direct object reference': 'BOLA',
+            'Missing authentication': 'Broken Authentication',
+            'Unvalidated user input': 'Security Misconfiguration'
         };
         
         // Return the mapped category or the original if no mapping exists
         return categoryMap[category] || 'Security Misconfiguration';
     }),
     description: z.string(),
-    severity: z.enum(['Critical', 'High', 'Medium', 'Low']),
-    recommendation: z.string()
+    severity: z.string().transform(sev => {
+        // Normalize severity to proper case (handle UPPERCASE and lowercase)
+        const normalized = sev.toUpperCase();
+        if (normalized === 'CRITICAL') return 'Critical';
+        if (normalized === 'HIGH') return 'High';
+        if (normalized === 'MEDIUM') return 'Medium';
+        if (normalized === 'LOW') return 'Low';
+        return 'Medium'; // Default fallback
+    }),
+    recommendation: z.string().optional().default('Review and fix the identified security issue.')
 });
 
 export const APIResponseSchema = z.object({
     findings: z.array(APIFindingSchema)
 });
 
-// Fuzz Target Schema
+// Fuzz Target Schema - Enhanced with better language normalization
 export const FuzzTargetSchema = z.object({
     functionName: z.string(),
     reasoning: z.string(),
-    language: z.enum(['C', 'C++', 'Python', 'JavaScript', 'TypeScript', 'Java', 'Go', 'Rust', 'PHP'])
+    language: z.preprocess(
+        (val) => {
+            if (typeof val !== 'string') return 'JavaScript';
+            
+            // Normalize language names
+            const normalized = val.trim();
+            const lowerNormalized = normalized.toLowerCase();
+            
+            // Handle various language name variations
+            if (lowerNormalized === 'c/c++' || lowerNormalized === 'c++') return 'C++';
+            if (lowerNormalized === 'c') return 'C';
+            if (lowerNormalized === 'python' || lowerNormalized === 'py') return 'Python';
+            if (lowerNormalized === 'javascript' || lowerNormalized === 'js') return 'JavaScript';
+            if (lowerNormalized === 'typescript' || lowerNormalized === 'ts') return 'TypeScript';
+            if (lowerNormalized === 'java') return 'Java';
+            if (lowerNormalized === 'go' || lowerNormalized === 'golang') return 'Go';
+            if (lowerNormalized === 'rust' || lowerNormalized === 'rs') return 'Rust';
+            if (lowerNormalized === 'php') return 'PHP';
+            
+            // Default to JavaScript if unrecognized
+            console.warn(`⚠️ Unrecognized language "${val}", defaulting to JavaScript`);
+            return 'JavaScript';
+        },
+        z.enum(['C', 'C++', 'Python', 'JavaScript', 'TypeScript', 'Java', 'Go', 'Rust', 'PHP'])
+    )
 });
 
 export const FuzzTargetResponseSchema = z.object({
@@ -109,10 +158,23 @@ export const VulnerabilityReportSchema = z.object({
 // ZIP File Validation Schema
 export const ZIP_MAX_SIZE = 50 * 1024 * 1024; // 50MB
 export const ALLOWED_EXTENSIONS = [
+    // Code files
     '.py', '.js', '.ts', '.jsx', '.tsx',
     '.java', '.cpp', '.c', '.cc', '.cxx',
     '.h', '.hpp', '.go', '.rs', '.php',
-    '.rb', '.cs', '.swift', '.kt', '.scala'
+    '.rb', '.cs', '.swift', '.kt', '.scala',
+    // Config and documentation
+    '.json', '.yaml', '.yml', '.toml', '.xml',
+    '.md', '.txt', '.env.example',
+    // Web files
+    '.html', '.css', '.scss', '.sass', '.less',
+    '.svg', '.vue',
+    // Build and config
+    '.gitignore', '.dockerignore', '.editorconfig',
+    'Dockerfile', 'Makefile', '.sh', '.bat', '.ps1',
+    // Source maps and manifests
+    '.map', 'manifest.json', 'package.json', 'package-lock.json',
+    'composer.json', 'Gemfile', 'requirements.txt'
 ];
 
 export function validateZipPath(path: string): boolean {
@@ -121,12 +183,32 @@ export function validateZipPath(path: string): boolean {
         return false;
     }
     
+    // Extract filename for special cases
+    const fileName = path.split('/').pop() || path.split('\\').pop() || path;
+    
+    // Allow specific important files regardless of extension
+    const importantFiles = [
+        'Dockerfile', 'Makefile', 'README', 'LICENSE',
+        'package.json', 'package-lock.json', 'composer.json',
+        'requirements.txt', 'Gemfile', 'Gemfile.lock',
+        'go.mod', 'go.sum', 'Cargo.toml', 'Cargo.lock',
+        '.gitignore', '.dockerignore', '.env.example'
+    ];
+    
+    if (importantFiles.some(name => fileName === name || fileName.startsWith(name))) {
+        return true;
+    }
+    
     // Check for allowed extensions
     const hasAllowedExtension = ALLOWED_EXTENSIONS.some(ext => 
         path.toLowerCase().endsWith(ext)
     );
     
-    return hasAllowedExtension;
+    // Skip binary files (images, fonts, etc.) - these aren't dangerous but not useful for analysis
+    const binaryExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.eot'];
+    const isBinary = binaryExtensions.some(ext => path.toLowerCase().endsWith(ext));
+    
+    return hasAllowedExtension && !isBinary;
 }
 
 // PII Detection Patterns

@@ -5,6 +5,7 @@ import type { CKGNode, CKGEdge } from '../types';
 interface CKGVisualizerProps {
   nodes: CKGNode[];
   edges: CKGEdge[];
+  forceRender?: boolean; // Bypass performance limit for dedicated viewer page
 }
 
 // Constants for the physics simulation
@@ -15,7 +16,7 @@ const DAMPING = 0.95;
 const CENTER_GRAVITY = 0.05;
 const STOP_THRESHOLD = 0.01;
 
-const CKGVisualizer: React.FC<CKGVisualizerProps> = ({ nodes, edges }) => {
+const CKGVisualizer: React.FC<CKGVisualizerProps> = ({ nodes, edges, forceRender = false }) => {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   // Fix: Use lazy initialization for useState to ensure the Map is created only once. This resolves a potential tooling issue and improves performance.
   const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(() => new Map());
@@ -24,7 +25,13 @@ const CKGVisualizer: React.FC<CKGVisualizerProps> = ({ nodes, edges }) => {
   // Fix: Initialize useRef with null to provide an initial value, resolving the "Expected 1 arguments, but got 0" error.
   const animationFrameRef = useRef<number | null>(null);
 
+  // Debug logging (only log once, not on every render)
+  useEffect(() => {
+    console.log(`🎨 CKGVisualizer: Displaying ${nodes.length} nodes and ${edges.length} edges`);
+  }, [nodes.length, edges.length]); // Only log when counts change
+  
   if (nodes.length === 0) {
+    console.warn('⚠️ CKGVisualizer: No nodes provided');
     return (
       <motion.div
         initial={{ opacity: 0 }}
@@ -32,6 +39,52 @@ const CKGVisualizer: React.FC<CKGVisualizerProps> = ({ nodes, edges }) => {
         className="text-center py-12 text-gray-400 bg-gray-800/50 rounded-2xl border border-gray-700"
       >
         <p>No visual graph to display.</p>
+        <p className="text-sm mt-2">This might be because:</p>
+        <ul className="text-xs mt-2 text-left inline-block">
+          <li>• No functions were found in the uploaded code</li>
+          <li>• The code language is not supported for AST parsing</li>
+          <li>• The AI analysis timed out</li>
+        </ul>
+      </motion.div>
+    );
+  }
+  
+  // Performance optimization: Limit nodes displayed for large graphs (unless forceRender is true)
+  if (!forceRender && nodes.length > 500) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="text-center py-12 text-gray-400 bg-gray-800/50 rounded-2xl border border-gray-700"
+      >
+        <p className="text-yellow-400 font-bold mb-3">⚡ Large Graph Detected</p>
+        <p className="mb-2">Found {nodes.length} nodes and {edges.length} edges</p>
+        <p className="text-sm text-gray-500 mb-4">
+          Graph visualization is disabled for performance.<br/>
+          Large codebases with 500+ functions may cause browser lag.
+        </p>
+        <p className="text-xs mb-4 text-green-400">
+          ✅ AST analysis completed successfully - all functions were parsed
+        </p>
+        
+        <button
+          onClick={() => {
+            // Store graph data in sessionStorage
+            sessionStorage.setItem('ckgData', JSON.stringify({ nodes, edges }));
+            // Open in new tab
+            window.open('/fuzzforge/graph-viewer', '_blank');
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 inline-flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          Open Interactive Graph Viewer
+        </button>
+        
+        <p className="text-xs text-gray-500 mt-3">
+          Opens in a new tab with optimized rendering and interactive controls
+        </p>
       </motion.div>
     );
   }

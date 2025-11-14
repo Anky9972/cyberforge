@@ -8,9 +8,16 @@ import type { WorkflowStep } from '../types';
 interface WorkflowStepperProps {
   steps: WorkflowStep[];
   currentStepIndex: number;
+  onStepClick?: (stepIndex: number) => void;
+  completedSteps?: number[];
 }
 
-const WorkflowStepper: React.FC<WorkflowStepperProps> = ({ steps, currentStepIndex }) => {
+const WorkflowStepper: React.FC<WorkflowStepperProps> = ({ 
+  steps, 
+  currentStepIndex, 
+  onStepClick,
+  completedSteps = []
+}) => {
   return (
     <div className="w-full py-8 px-4">
       <div className="max-w-6xl mx-auto">
@@ -38,9 +45,10 @@ const WorkflowStepper: React.FC<WorkflowStepperProps> = ({ steps, currentStepInd
             gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` 
           }}>
             {steps.map((step, index) => {
-              const isCompleted = index < currentStepIndex;
+              const isCompleted = completedSteps.includes(index) || index < currentStepIndex;
               const isActive = index === currentStepIndex;
-              const isPending = index > currentStepIndex;
+              const isPending = index > currentStepIndex && !completedSteps.includes(index);
+              const isClickable = onStepClick && (isCompleted || isActive);
 
               return (
                 <motion.div
@@ -49,6 +57,8 @@ const WorkflowStepper: React.FC<WorkflowStepperProps> = ({ steps, currentStepInd
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1, duration: 0.4 }}
                   className="flex flex-col items-center relative z-20"
+                  onClick={() => isClickable && onStepClick(index)}
+                  style={{ cursor: isClickable ? 'pointer' : 'default' }}
                 >
                   {/* Step Circle */}
                   <motion.div
@@ -78,11 +88,11 @@ const WorkflowStepper: React.FC<WorkflowStepperProps> = ({ steps, currentStepInd
                     <div
                       className={`relative flex items-center justify-center w-16 h-16 rounded-full border-2 transition-all duration-500 ${
                         isCompleted 
-                          ? 'bg-gradient-to-br from-blue-600 to-cyan-600 border-blue-400 shadow-lg shadow-blue-500/40' 
+                          ? 'bg-gradient-to-br from-blue-600 to-cyan-600 border-blue-400 shadow-lg shadow-blue-500/40 hover:shadow-blue-500/60' 
                           : isActive 
                           ? 'bg-gradient-to-br from-blue-500/20 to-purple-500/20 border-blue-400 shadow-lg shadow-blue-500/30 backdrop-blur-sm' 
                           : 'bg-gray-800/80 border-gray-600/50'
-                      }`}
+                      } ${isClickable ? 'hover:scale-105 hover:border-blue-300' : ''}`}
                     >
                       {isCompleted ? (
                         <motion.div

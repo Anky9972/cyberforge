@@ -2,7 +2,13 @@
 // Supports Mistral, OpenAI, Anthropic, Google Gemini, and local models
 
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Load environment variables from root directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -44,6 +50,8 @@ class AIProviderService {
    */
   async chat(messages: AIMessage[], config?: AIConfig): Promise<AIResponse> {
     const provider = config?.provider || this.primaryProvider;
+    
+    console.log(`[AI] Using provider: ${provider} (primary: ${this.primaryProvider}, fallback enabled: ${this.fallbackEnabled})`);
 
     try {
       return await this.callProvider(provider, messages, config);
@@ -470,6 +478,10 @@ class AIProviderService {
   getAvailableProviders(): string[] {
     const providers: string[] = [];
 
+    // Ollama is always available if URL is configured (default: localhost:11434)
+    const ollamaUrl = process.env.OLLAMA_API_URL || 'http://localhost:11434';
+    if (ollamaUrl) providers.push('ollama');
+    
     if (process.env.MISTRAL_API_KEY) providers.push('mistral');
     if (process.env.OPENAI_API_KEY) providers.push('openai');
     if (process.env.ANTHROPIC_API_KEY) providers.push('anthropic');

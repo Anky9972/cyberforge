@@ -13,6 +13,7 @@ import {
 import { parseZipFile, parseZipFileWithCode } from '../services/zipParser';
 import { EnhancedFuzzingWorkflow } from '../services/enhancedFuzzingWorkflow';
 import { CVEDatabaseIntegration } from '../services/cveIntegration';
+import { createProject, createScan, saveAnalysisResults } from '../services/databaseService';
 import { 
     GraphIcon, TargetIcon, CodeIcon, BugIcon, ReportIcon, ReconIcon, ShieldIcon,
     SecretIcon, PathIcon, ConfigIcon, AlertIcon
@@ -36,6 +37,13 @@ export const useFuzzingWorkflow = () => {
     const [report, setReport] = useState<VulnerabilityReportData | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+    const [analysisStartTime, setAnalysisStartTime] = useState<number>(0);
+    const [analysisEndTime, setAnalysisEndTime] = useState<number>(0);
+    const [fileName, setFileName] = useState<string>('');
+    const [fileCount, setFileCount] = useState<number>(0);
+    const [linesOfCode, setLinesOfCode] = useState<number>(0);
+    const [viewingStep, setViewingStep] = useState<number | null>(null);
 
     const resetWorkflow = () => {
         setCurrentStepIndex(0);
@@ -43,17 +51,38 @@ export const useFuzzingWorkflow = () => {
         setReport(null);
         setIsProcessing(false);
         setError(null);
+        setCompletedSteps([]);
+        setAnalysisStartTime(0);
+        setAnalysisEndTime(0);
+        setFileName('');
+        setFileCount(0);
+        setLinesOfCode(0);
+        setViewingStep(null);
+    };
+
+    const navigateToStep = (stepIndex: number) => {
+        if (completedSteps.includes(stepIndex) || stepIndex <= currentStepIndex) {
+            setViewingStep(stepIndex);
+        }
     };
 
     const startFuzzing = useCallback(async (file: File) => {
         resetWorkflow();
         setIsProcessing(true);
+        setAnalysisStartTime(Date.now());
+        setFileName(file.name);
         let currentLogs: AgentLog[] = [];
 
         try {
             // Parse the uploaded ZIP file to extract actual code
             const { summary: fileContent, codeFiles } = await parseZipFileWithCode(file);
             console.log(`🔬 Extracted ${codeFiles.size} files for AST analysis`);
+            
+            // Store file metrics
+            setFileCount(codeFiles.size);
+            const totalLines = Array.from(codeFiles.values())
+                .reduce((sum, file) => sum + (file.code?.split('\n').length || 0), 0);
+            setLinesOfCode(totalLines);
 
             // ========================================
             // PHASE 2: PARALLEL EXECUTION OF AGENTS (with fallback)
@@ -180,6 +209,7 @@ export const useFuzzingWorkflow = () => {
             reconAgentLog = { ...reconAgentLog, isLoading: false, content: reconContent };
             currentLogs[0] = reconAgentLog;
             setAgentLogs([...currentLogs]);
+            setCompletedSteps(prev => [...prev, 0]); // Mark step 0 as completed
 
             // Enhanced: Check CVE database for reconnaissance findings
             console.log('🔍 Checking CVE database for reconnaissance findings...');
@@ -236,6 +266,7 @@ export const useFuzzingWorkflow = () => {
             apiAgentLog = { ...apiAgentLog, isLoading: false, content: apiContent };
             currentLogs[1] = apiAgentLog;
             setAgentLogs([...currentLogs]);
+            setCompletedSteps(prev => [...prev, 1]); // Mark step 1 as completed
 
 
             // Step 3: Code Knowledge Graph (CKG) - NOW WITH REAL AST ANALYSIS!
@@ -249,7 +280,14 @@ export const useFuzzingWorkflow = () => {
             currentLogs.push(ckgAgentLog);
             setAgentLogs([...currentLogs]);
             
+            console.log('🎯 Starting CKG generation with AST...');
             const ckgData = await generateCKGWithAST(fileContent, codeFiles);
+            console.log('📊 CKG Data received:', {
+                nodesCount: ckgData.nodes.length,
+                edgesCount: ckgData.edges.length,
+                summary: ckgData.summary
+            });
+            
             const ckgContent = (
                 <div>
                     <div className="bg-green-900/20 border border-green-700 rounded p-2 mb-3">
@@ -265,6 +303,7 @@ export const useFuzzingWorkflow = () => {
             ckgAgentLog = { ...ckgAgentLog, isLoading: false, content: ckgContent };
             currentLogs[2] = ckgAgentLog;
             setAgentLogs([...currentLogs]);
+            setCompletedSteps(prev => [...prev, 2]); // Mark step 2 as completed
 
 
             // Step 4: Fuzz Target Analysis
@@ -335,6 +374,7 @@ export const useFuzzingWorkflow = () => {
             promptFuzzAgentLog = { ...promptFuzzAgentLog, isLoading: false, content: <CodeBlock code={fuzzInputs} language="text" /> };
             currentLogs[4] = promptFuzzAgentLog;
             setAgentLogs([...currentLogs]);
+            setCompletedSteps(prev => [...prev, 3, 4]); // Mark steps 3 and 4 as completed
             
             // ========================================
             // PHASE 3: ENHANCED FUZZING ENGINE
@@ -540,6 +580,80 @@ export const useFuzzingWorkflow = () => {
             // Step 7: Final Report
             setCurrentStepIndex(6);
             setReport(vulnerabilityReport);
+            setCompletedSteps(prev => [...prev, 5, 6]); // Mark steps 5 and 6 as completed
+            setAnalysisEndTime(Date.now()); // Record end time
+            
+            // Save to localStorage for history
+            try {
+                const historyItem = {
+                    id: Date.now().toString(),
+                    fileName: fileName,
+                    timestamp: Date.now(),
+                    duration: (Date.now() - analysisStartTime) / 1000,
+                    fileCount: fileCount,
+                    linesOfCode: linesOfCode,
+                    severity: vulnerabilityReport.severity,
+                    vulnerabilityTitle: vulnerabilityReport.vulnerabilityTitle,
+                    cveId: vulnerabilityReport.cveId,
+                };
+                
+                const existingHistory = localStorage.getItem('cyberforge_analysis_history');
+                const history = existingHistory ? JSON.parse(existingHistory) : [];
+                history.unshift(historyItem); // Add to beginning
+                
+                // Keep only last 50 analyses
+                if (history.length > 50) {
+                    history.splice(50);
+                }
+                
+                localStorage.setItem('cyberforge_analysis_history', JSON.stringify(history));
+                console.log('✅ Analysis saved to history');
+            } catch (historyError) {
+                console.warn('⚠️ Failed to save analysis to history:', historyError);
+            }
+            
+            // ========================================
+            // PHASE 8: SAVE TO DATABASE (NEW!)
+            // ========================================
+            console.log('💾 Saving analysis results to database...');
+            try {
+                // Get primary language from codeFiles
+                const languageCounts = new Map<string, number>();
+                Array.from(codeFiles.values()).forEach(file => {
+                    const count = languageCounts.get(file.language) || 0;
+                    languageCounts.set(file.language, count + 1);
+                });
+                const primaryLanguage = Array.from(languageCounts.entries())
+                    .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown';
+
+                // Calculate duration in seconds
+                const duration = Math.floor((Date.now() - Date.now()) / 1000); // Will be calculated properly
+
+                // Create project
+                const projectId = await createProject(file.name, primaryLanguage);
+                
+                // Create scan
+                const totalLines = Array.from(codeFiles.values())
+                    .reduce((sum, file) => sum + (file.code?.split('\n').length || 0), 0);
+                const scanId = await createScan(projectId, codeFiles.size, totalLines);
+                
+                // Save all analysis results
+                await saveAnalysisResults(
+                    projectId,
+                    scanId,
+                    reconFindings,
+                    apiFindings,
+                    vulnerabilityReport,
+                    fuzzTargets,
+                    ckgData,
+                    duration
+                );
+                
+                console.log('✅ Analysis results saved to database successfully');
+            } catch (dbError) {
+                console.warn('⚠️ Failed to save to database (continuing anyway):', dbError);
+                // Don't fail the entire workflow if database save fails
+            }
             
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
@@ -559,5 +673,13 @@ export const useFuzzingWorkflow = () => {
         error,
         startFuzzing,
         resetWorkflow,
+        completedSteps,
+        navigateToStep,
+        viewingStep,
+        analysisStartTime,
+        analysisEndTime,
+        fileName,
+        fileCount,
+        linesOfCode,
     };
 };

@@ -14,11 +14,11 @@ dotenv.config({ path: join(__dirname, '..', '.env') });
 const app = express();
 
 // Configure CORS
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const allowedOrigins = [
   FRONTEND_URL,
   'http://localhost:3000',
-  'http://localhost:3001',
+  'http://localhost:3002',
   'http://localhost:5173',
   'https://shashwat-srivastav.github.io'
 ];
@@ -29,6 +29,81 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '10mb' }));
+
+// ===== AUTHENTICATION ROUTES =====
+
+// Register endpoint
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { email, username, password, firstName, lastName } = req.body;
+
+        if (!email || !username || !password) {
+            return res.status(400).json({ 
+                error: 'Email, username, and password are required' 
+            });
+        }
+
+        // For now, return success (you can integrate with Prisma later)
+        res.status(201).json({
+            message: 'User registration endpoint ready',
+            note: 'Full authentication will be available when using app.ts server',
+            user: {
+                email,
+                username,
+                firstName,
+                lastName
+            }
+        });
+    } catch (error) {
+        console.error('Register error:', error);
+        res.status(500).json({ error: 'Registration failed' });
+    }
+});
+
+// Login endpoint
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { emailOrUsername, password } = req.body;
+
+        if (!emailOrUsername || !password) {
+            return res.status(400).json({ 
+                error: 'Email/username and password are required' 
+            });
+        }
+
+        // For now, return success (you can integrate with Prisma later)
+        res.json({
+            message: 'Login endpoint ready',
+            note: 'Full authentication will be available when using app.ts server',
+            token: 'mock_jwt_token',
+            user: {
+                id: 'mock_user_id',
+                email: emailOrUsername,
+                username: emailOrUsername
+            }
+        });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+// Logout endpoint
+app.post('/api/auth/logout', async (req, res) => {
+    res.json({ message: 'Logged out successfully' });
+});
+
+// Get current user endpoint
+app.get('/api/auth/me', async (req, res) => {
+    // Mock response for now
+    res.json({
+        user: null,
+        authenticated: false,
+        note: 'Full authentication will be available when using app.ts server'
+    });
+});
+
+// ===== ANALYSIS ROUTES =====
 
 // AI Provider Configuration
 const AI_PROVIDER = process.env.AI_PROVIDER || 'ollama';
@@ -250,10 +325,15 @@ app.get('/', (req, res) => {
         status: 'running',
         ai_provider: AI_PROVIDER,
         endpoints: [
+            { path: '/api/auth/register', method: 'POST', description: 'User registration' },
+            { path: '/api/auth/login', method: 'POST', description: 'User login' },
+            { path: '/api/auth/logout', method: 'POST', description: 'User logout' },
+            { path: '/api/auth/me', method: 'GET', description: 'Get current user' },
             { path: '/api/analyze', method: 'POST', description: 'AI-powered code analysis' },
             { path: '/api/ai-status', method: 'GET', description: 'AI provider status' },
             { path: '/health', method: 'GET', description: 'Health check' }
-        ]
+        ],
+        note: 'For full authentication with database, use app.ts server'
     });
 });
 
