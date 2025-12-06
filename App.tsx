@@ -14,6 +14,8 @@ import { NavHeader } from './components/NavHeader';
 import { AuthManager } from './components/auth/AuthManager';
 import { useFuzzingWorkflow } from './hooks/useFuzzingWorkflow';
 import GraphViewerPage from './components/GraphViewerPage';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { OnboardingTour } from './components/OnboardingTour';
 
 // Main Dashboard/Analysis Page Component
 const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
@@ -82,9 +84,9 @@ const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
 
                 <main className="space-y-8">
                     <section className="max-w-4xl mx-auto">
-                        <WorkflowStepper 
-                            steps={steps} 
-                            currentStepIndex={currentStepIndex} 
+                        <WorkflowStepper
+                            steps={steps}
+                            currentStepIndex={currentStepIndex}
                             onStepClick={navigateToStep}
                             completedSteps={completedSteps}
                         />
@@ -100,7 +102,7 @@ const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
                         <section className="max-w-3xl mx-auto bg-red-900 border border-red-700 p-4 rounded-lg text-red-200 animate-fade-in">
                             <h2 className="font-bold mb-2 text-xl">⚠️ Analysis Error</h2>
                             <p className="mb-3">{error}</p>
-                            
+
                             {error.includes('synthesize') && (
                                 <div className="bg-red-800 p-3 rounded mt-2 text-sm">
                                     <p className="font-semibold mb-1">💡 Possible Causes:</p>
@@ -117,7 +119,7 @@ const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
                                     </ul>
                                 </div>
                             )}
-                            
+
                             {error.includes('rate limit') && (
                                 <div className="bg-red-800 p-3 rounded mt-2 text-sm">
                                     <p className="font-semibold mb-1">💡 Quick Fixes:</p>
@@ -129,7 +131,7 @@ const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
                                     </ul>
                                 </div>
                             )}
-                            
+
                             {error.includes('timeout') && (
                                 <div className="bg-red-800 p-3 rounded mt-2 text-sm">
                                     <p className="font-semibold mb-1">⏱️ Timeout occurred:</p>
@@ -140,7 +142,7 @@ const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
                                     </ul>
                                 </div>
                             )}
-                            
+
                             <div className="flex gap-3 mt-4">
                                 <button
                                     onClick={() => {
@@ -170,7 +172,7 @@ const AnalysisPage: React.FC<{ onLogin?: () => void }> = ({ onLogin }) => {
                             ))}
                         </section>
                     )}
-                    
+
                     {isAnalysisComplete && (
                         <section className="animate-fade-in">
                             <AnalysisOverview
@@ -232,45 +234,46 @@ const App: React.FC = () => {
     };
 
     return (
-        <>
+        <ThemeProvider>
+            <OnboardingTour />
             <Routes>
                 {/* Home/Landing Page */}
-                <Route 
-                    path="/" 
+                <Route
+                    path="/"
                     element={
-                        <EnhancedLandingPage 
+                        <EnhancedLandingPage
                             onGetStarted={handleGetStarted}
                             onLogin={handleLogin}
                             onNavigate={handleNavigation}
                         />
-                    } 
+                    }
                 />
-                
+
                 {/* Analysis/Dashboard Page */}
                 <Route path="/analyze" element={<AnalysisPage onLogin={handleLogin} />} />
-                
+
                 {/* Graph Viewer Page */}
                 <Route path="/graph-viewer" element={<GraphViewerPage />} />
-                
+
                 {/* Documentation Page */}
                 <Route path="/docs" element={<DocumentationPage />} />
-                
+
                 {/* Pricing Page */}
                 <Route path="/pricing" element={<PricingPage />} />
-                
+
                 {/* About Page */}
                 <Route path="/about" element={<AboutPage />} />
-                
+
                 {/* Redirect any unknown routes to home */}
-                <Route 
-                    path="*" 
+                <Route
+                    path="*"
                     element={
-                        <EnhancedLandingPage 
-                            onGetStarted={handleGetStarted} 
+                        <EnhancedLandingPage
+                            onGetStarted={handleGetStarted}
                             onLogin={handleLogin}
-                            onNavigate={handleNavigation} 
+                            onNavigate={handleNavigation}
                         />
-                    } 
+                    }
                 />
             </Routes>
 
@@ -285,7 +288,7 @@ const App: React.FC = () => {
                     // navigate('/analyze');
                 }}
             />
-        </>
+        </ThemeProvider>
     );
 };
 

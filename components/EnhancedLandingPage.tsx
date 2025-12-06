@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
-import { 
-  Shield, Zap, Target, Lock, Code, Bug, ChevronRight, 
-  Database, Terminal, Eye, Layers, Activity, Cpu, 
-  Network, Search, FileSearch, AlertTriangle, CheckCircle2, 
+import {
+  Shield, Zap, Target, Lock, Code, Bug, ChevronRight,
+  Database, Terminal, Eye, Layers, Activity, Cpu,
+  Network, Search, FileSearch, AlertTriangle, CheckCircle2,
   TrendingUp, Play, Scan, ShieldCheck, ShieldAlert, Radio
 } from 'lucide-react';
 import { HiShieldCheck, HiShieldExclamation } from 'react-icons/hi';
 import { NavHeader } from './NavHeader';
+import { LivePlayground } from './LivePlayground';
 
 interface EnhancedLandingPageProps {
   onGetStarted: () => void;
@@ -97,29 +98,29 @@ const EnhancedLandingPage: React.FC<EnhancedLandingPageProps> = ({ onGetStarted,
   ];
 
   const stats = [
-    { 
-      value: "99.9%", 
+    {
+      value: "99.9%",
       label: "Detection Accuracy",
       description: "False positive rate < 0.1%",
       icon: <HiShieldCheck className="w-8 h-8" />,
       color: "from-green-400 to-emerald-500"
     },
-    { 
-      value: "40%", 
+    {
+      value: "40%",
       label: "Faster Analysis",
       description: "Compared to sequential scanning",
       icon: <TrendingUp className="w-8 h-8" />,
       color: "from-blue-400 to-cyan-500"
     },
-    { 
-      value: "180K+", 
+    {
+      value: "180K+",
       label: "CVE Database",
       description: "Up-to-date threat intelligence",
       icon: <AlertTriangle className="w-8 h-8" />,
       color: "from-orange-400 to-red-500"
     },
-    { 
-      value: "24/7", 
+    {
+      value: "24/7",
       label: "Real-time Monitoring",
       description: "Continuous security analysis",
       icon: <Activity className="w-8 h-8" />,
@@ -137,13 +138,13 @@ const EnhancedLandingPage: React.FC<EnhancedLandingPageProps> = ({ onGetStarted,
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white overflow-hidden relative">
       {/* Navigation Header */}
-      <NavHeader 
-        onGetStarted={onGetStarted} 
+      <NavHeader
+        onGetStarted={onGetStarted}
         onLogin={onLogin}
         onNavigate={onNavigate}
         transparent={true}
       />
-      
+
       {/* Animated Matrix Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
         <div className="matrix-bg"></div>
@@ -193,8 +194,8 @@ const EnhancedLandingPage: React.FC<EnhancedLandingPageProps> = ({ onGetStarted,
 
       <div className="relative z-10">
         {/* Hero Section */}
-        <motion.section 
-          className="container mx-auto px-4 pt-8 lg:pt-12 pb-32"
+        <motion.section
+          className="container mx-auto px-4 pt-32 lg:pt-40 pb-32"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8 }}
@@ -215,7 +216,7 @@ const EnhancedLandingPage: React.FC<EnhancedLandingPageProps> = ({ onGetStarted,
                 </motion.div>
 
                 {/* Main Title */}
-                <motion.h1 
+                <motion.h1
                   className="text-6xl md:text-7xl lg:text-8xl font-extrabold mb-6 leading-tight"
                   initial={{ y: 50, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -227,18 +228,18 @@ const EnhancedLandingPage: React.FC<EnhancedLandingPageProps> = ({ onGetStarted,
                   </span>
                 </motion.h1>
 
-                <motion.p 
+                <motion.p
                   className="text-xl md:text-2xl text-gray-400 mb-8 leading-relaxed"
                   initial={{ y: 50, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.5, duration: 0.8 }}
                 >
-                  Enterprise-grade vulnerability detection powered by AI agents. 
+                  Enterprise-grade vulnerability detection powered by AI agents.
                   <span className="text-blue-400 font-semibold"> Find security flaws before attackers do.</span>
                 </motion.p>
 
                 {/* CTA Buttons */}
-                <motion.div 
+                <motion.div
                   className="flex flex-col sm:flex-row gap-4"
                   initial={{ y: 50, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -292,130 +293,27 @@ const EnhancedLandingPage: React.FC<EnhancedLandingPageProps> = ({ onGetStarted,
                 </motion.div>
               </div>
 
-              {/* Right Column - Interactive Security Dashboard */}
+              {/* Right Column - Interactive Playground */}
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
-                className="relative"
+                className="relative lg:pl-10"
               >
-                {/* Main Dashboard Card */}
-                <div className="relative bg-gradient-to-br from-gray-900/90 to-gray-800/90 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-6 shadow-2xl">
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-500/20 rounded-lg">
-                        <Scan className="w-6 h-6 text-blue-400" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg">Security Scan</h3>
-                        <p className="text-sm text-gray-400">Real-time Analysis</p>
-                      </div>
-                    </div>
-                    <motion.div
-                      animate={{ rotate: scanningDemo ? 360 : 0 }}
-                      transition={{ duration: 2, repeat: scanningDemo ? Infinity : 0, ease: "linear" }}
-                      className="p-2 bg-green-500/20 rounded-full"
-                    >
-                      <Activity className="w-5 h-5 text-green-400" />
-                    </motion.div>
-                  </div>
+                <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-3xl blur-2xl -z-10" />
+                <LivePlayground />
 
-                  {/* Scanning Progress */}
-                  <div className="space-y-3 mb-6">
-                    {scanSteps.map((step, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.7 + index * 0.1 }}
-                        className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            step.status === 'complete' ? 'bg-green-500/20 text-green-400' :
-                            step.status === 'scanning' ? 'bg-blue-500/20 text-blue-400' :
-                            'bg-gray-600/20 text-gray-500'
-                          }`}>
-                            {step.status === 'complete' ? <CheckCircle2 className="w-5 h-5" /> :
-                             step.status === 'scanning' ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}><Scan className="w-5 h-5" /></motion.div> :
-                             <div className="w-2 h-2 bg-gray-500 rounded-full"></div>}
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">{step.name}</p>
-                            <p className="text-xs text-gray-500">{step.time}</p>
-                          </div>
-                        </div>
-                        {step.status === 'scanning' && (
-                          <motion.div
-                            animate={{ opacity: [0.3, 1, 0.3] }}
-                            transition={{ duration: 1.5, repeat: Infinity }}
-                            className="text-xs font-medium text-blue-400"
-                          >
-                            Analyzing...
-                          </motion.div>
-                        )}
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Vulnerability Count */}
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="p-4 bg-gradient-to-br from-red-500/10 to-red-600/10 border border-red-500/30 rounded-xl">
-                      <div className="flex items-center gap-2 mb-2">
-                        <AlertTriangle className="w-5 h-5 text-red-400" />
-                        <span className="text-sm text-gray-400">Critical</span>
-                      </div>
-                      <p className="text-3xl font-bold text-red-400">23</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-yellow-500/10 to-yellow-600/10 border border-yellow-500/30 rounded-xl">
-                      <div className="flex items-center gap-2 mb-2">
-                        <AlertTriangle className="w-5 h-5 text-yellow-400" />
-                        <span className="text-sm text-gray-400">High</span>
-                      </div>
-                      <p className="text-3xl font-bold text-yellow-400">45</p>
-                    </div>
-                  </div>
-
-                  {/* Lines Scanned Counter */}
-                  <div className="p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400 mb-1">Lines Scanned</p>
-                        <p className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text">
-                          {codeLines.toLocaleString()}+
-                        </p>
-                      </div>
-                      <FileSearch className="w-8 h-8 text-blue-400" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Floating Cards */}
+                {/* Floating Stats Logic (Optional: Keep floating cards or remove to clean up) */}
                 <motion.div
                   animate={{ y: [0, -10, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
-                  className="absolute -top-6 -right-6 p-4 bg-gradient-to-br from-green-500/90 to-emerald-500/90 backdrop-blur-xl rounded-xl shadow-2xl"
+                  className="absolute -top-6 -right-6 p-4 bg-gradient-to-br from-green-500/90 to-emerald-500/90 backdrop-blur-xl rounded-xl shadow-2xl hidden lg:block"
                 >
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5" />
                     <div>
                       <p className="text-xs font-medium">Secure</p>
                       <p className="text-2xl font-bold">98.7%</p>
-                    </div>
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  animate={{ y: [0, 10, 0] }}
-                  transition={{ duration: 4, repeat: Infinity }}
-                  className="absolute -bottom-6 -left-6 p-4 bg-gradient-to-br from-purple-500/90 to-pink-500/90 backdrop-blur-xl rounded-xl shadow-2xl"
-                >
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-5 h-5" />
-                    <div>
-                      <p className="text-xs font-medium">Speed</p>
-                      <p className="text-2xl font-bold">3.2s</p>
                     </div>
                   </div>
                 </motion.div>
@@ -446,8 +344,10 @@ const EnhancedLandingPage: React.FC<EnhancedLandingPageProps> = ({ onGetStarted,
                       {stat.icon}
                     </div>
                     <div className="text-4xl font-bold mb-2 bg-gradient-to-br bg-clip-text text-transparent"
-                      style={{ backgroundImage: `linear-gradient(to bottom right, var(--tw-gradient-stops))`, 
-                        backgroundClip: 'text', WebkitBackgroundClip: 'text' }}
+                      style={{
+                        backgroundImage: `linear-gradient(to bottom right, var(--tw-gradient-stops))`,
+                        backgroundClip: 'text', WebkitBackgroundClip: 'text'
+                      }}
                     >
                       {stat.value}
                     </div>
@@ -495,7 +395,7 @@ const EnhancedLandingPage: React.FC<EnhancedLandingPageProps> = ({ onGetStarted,
                 className="group relative"
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-20 rounded-2xl blur-xl transition-opacity duration-500`}></div>
-                
+
                 <div className="relative bg-gradient-to-br from-gray-900/90 to-gray-800/90 backdrop-blur-xl border border-gray-700 rounded-2xl p-6 h-full">
                   {/* Badge */}
                   <div className="absolute top-4 right-4">
@@ -564,25 +464,22 @@ const EnhancedLandingPage: React.FC<EnhancedLandingPageProps> = ({ onGetStarted,
                     className="p-4 bg-gray-900/50 backdrop-blur-sm border border-gray-700 rounded-xl flex items-center justify-between group hover:border-gray-600 transition-all"
                   >
                     <div className="flex items-center gap-4 flex-1">
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                        vuln.severity === 'critical' ? 'bg-red-500/20' :
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${vuln.severity === 'critical' ? 'bg-red-500/20' :
                         vuln.severity === 'high' ? 'bg-orange-500/20' :
-                        'bg-yellow-500/20'
-                      }`}>
-                        <AlertTriangle className={`w-6 h-6 ${
-                          vuln.severity === 'critical' ? 'text-red-400' :
+                          'bg-yellow-500/20'
+                        }`}>
+                        <AlertTriangle className={`w-6 h-6 ${vuln.severity === 'critical' ? 'text-red-400' :
                           vuln.severity === 'high' ? 'text-orange-400' :
-                          'text-yellow-400'
-                        }`} />
+                            'text-yellow-400'
+                          }`} />
                       </div>
                       <div className="flex-1">
                         <h4 className="font-semibold text-white">{vuln.name}</h4>
                         <p className="text-sm text-gray-400">{vuln.detected} instances detected</p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={`text-sm font-medium ${
-                          vuln.trend.startsWith('+') ? 'text-red-400' : 'text-green-400'
-                        }`}>
+                        <span className={`text-sm font-medium ${vuln.trend.startsWith('+') ? 'text-red-400' : 'text-green-400'
+                          }`}>
                           {vuln.trend}
                         </span>
                         <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-blue-400 transition-colors" />
@@ -685,7 +582,7 @@ const EnhancedLandingPage: React.FC<EnhancedLandingPageProps> = ({ onGetStarted,
               <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
                 Join thousands of developers who trust FuzzForge to protect their applications from security threats.
               </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <motion.button
                   onClick={onGetStarted}

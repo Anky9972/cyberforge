@@ -1,8 +1,6 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
-// Fix: Correct import path for types
 import type { WorkflowStep } from '../types';
 
 interface WorkflowStepperProps {
@@ -12,167 +10,112 @@ interface WorkflowStepperProps {
   completedSteps?: number[];
 }
 
-const WorkflowStepper: React.FC<WorkflowStepperProps> = ({ 
-  steps, 
-  currentStepIndex, 
+const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
+  steps,
+  currentStepIndex,
   onStepClick,
   completedSteps = []
 }) => {
   return (
-    <div className="w-full py-8 px-4">
+    <div className="w-full py-6 md:py-10 px-0">
       <div className="max-w-6xl mx-auto">
-        {/* Steps Container */}
-        <div className="relative">
-          {/* Progress line background */}
-          <div className="absolute top-8 left-0 right-0 h-0.5 bg-gray-700/50"></div>
-          
-          {/* Animated progress line */}
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ 
-              scaleX: currentStepIndex > 0 ? currentStepIndex / (steps.length - 1) : 0 
-            }}
-            transition={{ duration: 0.8, ease: "easeInOut" }}
-            className="absolute top-8 left-0 h-0.5 origin-left z-10"
-            style={{ 
-              width: '100%',
-              background: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%)'
-            }}
-          />
+        {/* Mobile: Horizontal Scroll Container with Gradient Masks */}
+        <div className="relative group">
+          {/* Fade masks for scroll */}
+          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-gray-900 to-transparent z-30 pointer-events-none md:hidden"></div>
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-900 to-transparent z-30 pointer-events-none md:hidden"></div>
 
-          {/* Steps Grid */}
-          <div className="grid gap-4" style={{ 
-            gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` 
-          }}>
-            {steps.map((step, index) => {
-              const isCompleted = completedSteps.includes(index) || index < currentStepIndex;
-              const isActive = index === currentStepIndex;
-              const isPending = index > currentStepIndex && !completedSteps.includes(index);
-              const isClickable = onStepClick && (isCompleted || isActive);
+          <div className="overflow-x-auto pb-4 px-4 md:px-0 hide-scrollbar scroll-smooth">
+            <div className="min-w-[600px] md:min-w-0 relative">
 
-              return (
-                <motion.div
-                  key={step.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1, duration: 0.4 }}
-                  className="flex flex-col items-center relative z-20"
-                  onClick={() => isClickable && onStepClick(index)}
-                  style={{ cursor: isClickable ? 'pointer' : 'default' }}
-                >
-                  {/* Step Circle */}
-                  <motion.div
-                    animate={isActive ? {
-                      scale: [1, 1.08, 1],
-                    } : {}}
-                    transition={isActive ? { duration: 2, repeat: Infinity, ease: "easeInOut" } : {}}
-                    className="relative mb-4"
-                  >
-                    {/* Outer glow ring for active step */}
-                    {isActive && (
-                      <motion.div
-                        animate={{
-                          scale: [1, 1.3, 1],
-                          opacity: [0.6, 0, 0.6]
-                        }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                        className="absolute inset-0 rounded-full"
-                        style={{
-                          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, transparent 70%)',
-                          filter: 'blur(8px)'
-                        }}
-                      />
-                    )}
+              {/* Progress Background Line */}
+              <div className="absolute top-8 left-0 right-0 h-1 bg-gray-800 rounded-full"></div>
 
-                    {/* Step circle */}
-                    <div
-                      className={`relative flex items-center justify-center w-16 h-16 rounded-full border-2 transition-all duration-500 ${
-                        isCompleted 
-                          ? 'bg-gradient-to-br from-blue-600 to-cyan-600 border-blue-400 shadow-lg shadow-blue-500/40 hover:shadow-blue-500/60' 
-                          : isActive 
-                          ? 'bg-gradient-to-br from-blue-500/20 to-purple-500/20 border-blue-400 shadow-lg shadow-blue-500/30 backdrop-blur-sm' 
-                          : 'bg-gray-800/80 border-gray-600/50'
-                      } ${isClickable ? 'hover:scale-105 hover:border-blue-300' : ''}`}
-                    >
-                      {isCompleted ? (
-                        <motion.div
-                          initial={{ scale: 0, rotate: -180 }}
-                          animate={{ scale: 1, rotate: 0 }}
-                          transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                        >
-                          <Check className="w-7 h-7 text-white drop-shadow-lg" />
-                        </motion.div>
-                      ) : (
-                        <div className={`transform transition-all duration-300 ${
-                          isActive ? 'text-blue-400 scale-110' : 'text-gray-500 scale-100'
-                        }`}>
-                          {step.icon}
-                        </div>
-                      )}
-                    </div>
+              {/* Active Progress Line */}
+              <motion.div
+                initial={{ scaleX: 0 }}
+                animate={{
+                  scaleX: steps.length > 1 ? currentStepIndex / (steps.length - 1) : 0
+                }}
+                transition={{ duration: 0.8, ease: "easeInOut" }}
+                className="absolute top-8 left-0 h-1 origin-left z-10 rounded-full"
+                style={{
+                  width: '100%',
+                  background: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%)',
+                  boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)'
+                }}
+              />
 
-                    {/* Pulsing dot for active step */}
-                    {isActive && (
-                      <motion.div
-                        animate={{
-                          scale: [0, 1.5],
-                          opacity: [0.8, 0]
-                        }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }}
-                        className="absolute inset-0 rounded-full bg-blue-500"
-                      />
-                    )}
-                  </motion.div>
+              {/* Steps Row */}
+              <div className="flex justify-between relative z-20">
+                {steps.map((step, index) => {
+                  const isCompleted = completedSteps.includes(index) || index < currentStepIndex;
+                  const isActive = index === currentStepIndex;
+                  const isPending = index > currentStepIndex && !completedSteps.includes(index);
+                  const isClickable = onStepClick && (isCompleted || isActive);
 
-                  {/* Step Label */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 + index * 0.1 }}
-                    className="text-center"
-                  >
-                    <p className={`text-sm font-semibold mb-1 transition-colors duration-300 ${
-                      isCompleted 
-                        ? 'text-blue-400' 
-                        : isActive 
-                        ? 'text-blue-400' 
-                        : 'text-gray-500'
-                    }`}>
-                      {step.name}
-                    </p>
-
-                    {/* Status Badge */}
+                  return (
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.3 + index * 0.1 }}
+                      key={step.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1, duration: 0.4 }}
+                      className="flex flex-col items-center flex-1"
+                      onClick={() => isClickable && onStepClick(index)}
+                      style={{ cursor: isClickable ? 'pointer' : 'default' }}
                     >
-                      {isCompleted && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/20 border border-blue-500/30 rounded-full text-xs text-blue-400">
-                          <Check className="w-3 h-3" />
-                          Complete
-                        </span>
-                      )}
-                      {isActive && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/20 border border-blue-500/30 rounded-full text-xs text-blue-400">
+                      {/* Step Circle Container */}
+                      <div className="relative mb-3">
+                        {/* Active Glow Ring */}
+                        {isActive && (
                           <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                            className="w-2 h-2 border-2 border-blue-400 border-t-transparent rounded-full"
+                            animate={{ scale: [1, 1.4, 1], opacity: [0.5, 0, 0.5] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="absolute inset-0 bg-blue-500 rounded-full blur-md"
                           />
-                          Active
-                        </span>
-                      )}
-                      {isPending && (
-                        <span className="inline-flex items-center px-2 py-0.5 bg-gray-700/30 border border-gray-600/30 rounded-full text-xs text-gray-500">
-                          Pending
-                        </span>
-                      )}
+                        )}
+
+                        {/* Main Circle */}
+                        <div
+                          className={`relative flex items-center justify-center w-16 h-16 rounded-full border-2 transition-all duration-300 ${isCompleted
+                              ? 'bg-gray-900 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]'
+                              : isActive
+                                ? 'bg-gray-900 border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]'
+                                : 'bg-gray-900 border-gray-700'
+                            }`}
+                        >
+                          {isCompleted ? (
+                            <Check className="w-6 h-6 text-blue-400" strokeWidth={3} />
+                          ) : (
+                            <div className={`transition-colors duration-300 ${isActive ? 'text-white' : 'text-gray-500'}`}>
+                              {step.icon}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Text Labels */}
+                      <div className="text-center">
+                        <p className={`text-sm font-bold mb-1 whitespace-nowrap ${isActive ? 'text-white' : isCompleted ? 'text-blue-400' : 'text-gray-500'
+                          }`}>
+                          {step.name}
+                        </p>
+                        {/* Mobile-friendly status text instead of badge for cleaner look */}
+                        <p className="text-[10px] uppercase tracking-wider font-medium text-gray-500">
+                          {isActive ? (
+                            <span className="text-blue-400 animate-pulse">In Progress</span>
+                          ) : isCompleted ? (
+                            <span className="text-green-500">Completed</span>
+                          ) : (
+                            <span>Pending</span>
+                          )}
+                        </p>
+                      </div>
                     </motion.div>
-                  </motion.div>
-                </motion.div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -181,4 +124,3 @@ const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
 };
 
 export default WorkflowStepper;
-

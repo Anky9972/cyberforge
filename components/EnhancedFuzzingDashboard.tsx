@@ -20,8 +20,11 @@ import {
   Clock,
   FileText,
   Upload,
-  RefreshCw
+  Settings,
+  MessageSquare
 } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { CollaborationPanel } from './CollaborationPanel';
 
 export interface CrashCluster {
   fingerprint: string;
@@ -103,8 +106,11 @@ export const EnhancedFuzzingDashboard: React.FC<EnhancedFuzzingDashboardProps> =
   onImportPostman,
   onReplaySession
 }) => {
+  const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<'crashes' | 'corpus' | 'export' | 'replay'>('crashes');
   const [selectedFramework, setSelectedFramework] = useState<string>('jest');
+  const [customizationMode, setCustomizationMode] = useState(false);
+  const [collaborationOpenId, setCollaborationOpenId] = useState<string | null>(null);
 
   const tabs = [
     { id: 'crashes' as const, name: 'Crash Deduplication', icon: Bug },
@@ -123,7 +129,8 @@ export const EnhancedFuzzingDashboard: React.FC<EnhancedFuzzingDashboardProps> =
   };
 
   return (
-    <div className="bg-gray-900 text-white min-h-screen p-8">
+    <div className={`min-h-screen p-8 transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
+      }`}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
@@ -141,6 +148,21 @@ export const EnhancedFuzzingDashboard: React.FC<EnhancedFuzzingDashboardProps> =
               </p>
             </div>
             <div className="flex items-center gap-4">
+              <button
+                onClick={toggleTheme}
+                className="p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
+                title="Toggle Theme"
+              >
+                {theme === 'dark' ? '🌞' : '🌙'}
+              </button>
+              <button
+                onClick={() => setCustomizationMode(!customizationMode)}
+                className={`p-2 rounded-lg transition-colors ${customizationMode ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  }`}
+                title="Customize Dashboard"
+              >
+                <Settings size={20} />
+              </button>
               <div className="px-4 py-2 bg-green-900/30 border border-green-700 rounded-lg">
                 <span className="text-green-400 font-semibold">✓ All Systems Operational</span>
               </div>
@@ -154,419 +176,302 @@ export const EnhancedFuzzingDashboard: React.FC<EnhancedFuzzingDashboardProps> =
               { name: 'Corpus Manager', enabled: features.corpusManager.enabled, count: features.corpusManager.stats.totalSeeds },
               { name: 'SARIF Export', enabled: features.sarifExport.enabled, count: features.sarifExport.vulnerabilityCount },
               { name: 'Test Gen', enabled: features.testExport.enabled, count: features.testExport.generatedTests },
-              { name: 'API Replay', enabled: features.apiReplayer.enabled, count: features.apiReplayer.sessions }
-            ].map((feature, index) => (
+              { name: 'API Replay', enabled: features.apiReplayer.enabled, count: features.apiReplayer.requestsReplayed }
+            ].map((feature, idx) => (
               <motion.div
-                key={feature.name}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                className={`px-4 py-2 rounded-lg border ${
-                  feature.enabled
-                    ? 'bg-blue-900/30 border-blue-700 text-blue-400'
-                    : 'bg-gray-800 border-gray-700 text-gray-500'
-                }`}
+                key={idx}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                whileHover={{ scale: customizationMode ? 1.05 : 1.02, cursor: customizationMode ? 'grab' : 'default' }}
+                className={`flex items-center gap-3 px-4 py-2 rounded-full border ${feature.enabled
+                  ? 'bg-blue-900/20 border-blue-500/30'
+                  : 'bg-gray-800/50 border-gray-700'
+                  }`}
               >
-                <div className="flex items-center gap-2">
-                  {feature.enabled ? <CheckCircle size={16} /> : <XCircle size={16} />}
-                  <span className="font-semibold">{feature.name}</span>
-                  {feature.enabled && (
-                    <span className="ml-2 px-2 py-0.5 bg-blue-700 rounded text-xs">
-                      {feature.count}
-                    </span>
-                  )}
-                </div>
+                <div className={`w-2 h-2 rounded-full ${feature.enabled ? 'bg-blue-400 animate-pulse' : 'bg-gray-500'}`} />
+                <span className="font-medium text-sm">{feature.name}</span>
+                {feature.enabled && (
+                  <span className="bg-blue-500/20 text-blue-300 text-xs px-2 py-0.5 rounded-full">
+                    {feature.count}
+                  </span>
+                )}
               </motion.div>
             ))}
           </div>
         </motion.div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-2 mb-6 overflow-x-auto">
+        <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              }`}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${activeTab === tab.id
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                }`}
             >
-              <tab.icon size={20} />
+              <tab.icon size={18} />
               {tab.name}
             </button>
           ))}
         </div>
 
-        {/* Tab Content */}
+        {/* Main Content Area */}
         <AnimatePresence mode="wait">
-          {/* Crash Deduplication Tab */}
-          {activeTab === 'crashes' && (
-            <motion.div
-              key="crashes"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-400">Total Crashes</h3>
-                    <Bug className="text-red-400" size={24} />
-                  </div>
-                  <p className="text-3xl font-bold text-white">{features.crashDedup.stats.totalCrashes}</p>
-                </div>
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-400">Unique Crashes</h3>
-                    <Shield className="text-blue-400" size={24} />
-                  </div>
-                  <p className="text-3xl font-bold text-white">{features.crashDedup.stats.uniqueCrashes}</p>
-                </div>
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-400">Dedup Rate</h3>
-                    <TrendingUp className="text-green-400" size={24} />
-                  </div>
-                  <p className="text-3xl font-bold text-white">{features.crashDedup.deduplicationRate}%</p>
-                </div>
-              </div>
-
-              {/* Crash Clusters */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-xl font-bold mb-4">Crash Clusters</h3>
-                <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
-                  {features.crashDedup.clusters.map((cluster, index) => (
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            {activeTab === 'crashes' && (
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 space-y-4">
+                  {features.crashDedup.clusters.map((cluster) => (
                     <motion.div
                       key={cluster.fingerprint}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="bg-gray-900 border border-gray-700 rounded-lg p-4 hover:border-blue-600 transition-colors"
+                      layout={customizationMode}
+                      className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-blue-500/50 transition-colors"
                     >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className={`px-3 py-1 rounded text-sm font-semibold ${getSeverityColor(cluster.severity)}`}>
-                              {cluster.severity.toUpperCase()}
-                            </span>
-                            <span className="text-gray-400">Count: {cluster.count}</span>
-                            <span className="text-gray-500 text-sm flex items-center gap-1">
-                              <Clock size={14} />
-                              {new Date(cluster.lastSeen).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-300 font-mono bg-gray-950 p-2 rounded">
-                            {cluster.representative.errorMessage}
-                          </p>
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getSeverityColor(cluster.severity)}`}>
+                            {cluster.severity}
+                          </span>
+                          <span className="font-mono text-gray-400 text-sm">
+                            {cluster.fingerprint.substring(0, 8)}...
+                          </span>
                         </div>
-                        <button
-                          onClick={() => onExportCluster?.(cluster.fingerprint)}
-                          className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors flex items-center gap-2"
-                        >
-                          <Download size={16} />
-                          Export
-                        </button>
+                        <span className="flex items-center gap-1 text-gray-400 text-sm">
+                          <Clock size={14} />
+                          {new Date(cluster.lastSeen).toLocaleTimeString()}
+                        </span>
                       </div>
-                      <details className="mt-2">
-                        <summary className="cursor-pointer text-blue-400 hover:text-blue-300 text-sm">
-                          View Stack Trace
-                        </summary>
-                        <pre className="mt-2 p-3 bg-gray-950 rounded text-xs overflow-x-auto">
-                          {cluster.representative.stackTrace}
-                        </pre>
-                      </details>
+
+                      <div className="bg-black/50 rounded-lg p-4 font-mono text-sm mb-4 overflow-x-auto">
+                        <div className="text-red-400 mb-2">{cluster.representative.errorMessage}</div>
+                        <div className="text-gray-500 pl-4 border-l-2 border-gray-700">
+                          {cluster.representative.stackTrace.split('\n').slice(0, 3).join('\n')}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                          <TrendingUp size={16} className="text-blue-400" />
+                          <span>Seen {cluster.count} times</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setCollaborationOpenId(
+                              collaborationOpenId === cluster.fingerprint ? null : cluster.fingerprint
+                            )}
+                            className={`px-3 py-1.5 rounded text-sm font-medium flex items-center gap-2 transition-colors ${collaborationOpenId === cluster.fingerprint
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-700 hover:bg-gray-600 text-white'
+                              }`}
+                          >
+                            <MessageSquare size={14} />
+                            {collaborationOpenId === cluster.fingerprint ? 'Close' : 'Discuss'}
+                          </button>
+                          <button
+                            onClick={() => onExportCluster?.(cluster.fingerprint)}
+                            className="text-blue-400 hover:text-blue-300 text-sm font-medium px-3 py-1.5"
+                          >
+                            Export Repro
+                          </button>
+                        </div>
+                      </div>
+
+                      <AnimatePresence>
+                        {collaborationOpenId === cluster.fingerprint && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                            animate={{ height: 'auto', opacity: 1, marginTop: 16 }}
+                            exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <CollaborationPanel
+                              crashesFingerprint={cluster.fingerprint}
+                              onClose={() => setCollaborationOpenId(null)}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                   ))}
                 </div>
-              </div>
-            </motion.div>
-          )}
 
-          {/* Corpus Manager Tab */}
-          {activeTab === 'corpus' && (
-            <motion.div
-              key="corpus"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              {/* Corpus Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {[
-                  { label: 'Total Seeds', value: features.corpusManager.stats.totalSeeds, icon: Database },
-                  { label: 'Golden Seeds', value: features.corpusManager.stats.goldenSeeds, icon: Zap },
-                  { label: 'Coverage', value: features.corpusManager.stats.uniqueCoverage, icon: Shield },
-                  { label: 'Version', value: `v${features.corpusManager.stats.version}`, icon: GitBranch }
-                ].map((stat, index) => (
-                  <motion.div
-                    key={stat.label}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-gray-800 border border-gray-700 rounded-lg p-6"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-gray-400">{stat.label}</h3>
-                      <stat.icon className="text-blue-400" size={20} />
-                    </div>
-                    <p className="text-2xl font-bold text-white">{stat.value}</p>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Corpus Actions */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-xl font-bold mb-4">Corpus Management</h3>
-                <div className="flex gap-4">
-                  <button
-                    onClick={onMinimizeCorpus}
-                    className="flex-1 px-6 py-4 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-                  >
-                    <RefreshCw size={20} />
-                    Minimize Corpus (Coverage-Aware)
-                  </button>
-                  <button
-                    onClick={() => {/* Export corpus */}}
-                    className="px-6 py-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors flex items-center gap-2"
-                  >
-                    <Download size={20} />
-                    Export
-                  </button>
-                </div>
-              </div>
-
-              {/* Top Seeds */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-xl font-bold mb-4">Top Seeds by Energy</h3>
-                <div className="space-y-3">
-                  {features.corpusManager.topSeeds.map((seed, index) => (
-                    <div
-                      key={seed.id}
-                      className="bg-gray-900 border border-gray-700 rounded-lg p-4 flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="text-2xl font-bold text-gray-600">#{index + 1}</div>
-                        <div>
-                          <p className="text-sm text-gray-400">Seed ID: {seed.id.substring(0, 12)}...</p>
-                          <div className="flex items-center gap-4 mt-1">
-                            <span className="text-blue-400">Energy: {seed.energy}</span>
-                            <span className="text-green-400">Coverage: {seed.coverageScore}</span>
-                            {seed.isGolden && (
-                              <span className="px-2 py-1 bg-yellow-900/30 border border-yellow-700 rounded text-yellow-400 text-xs font-semibold">
-                                ⭐ GOLDEN
-                              </span>
-                            )}
-                          </div>
+                <div className="md:col-span-1 space-y-6">
+                  <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                      <Shield className="text-green-400" />
+                      Deduplication Stats
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg">
+                        <span className="text-gray-400">Total Crashes</span>
+                        <span className="text-2xl font-bold">{features.crashDedup.stats.totalCrashes}</span>
+                      </div>
+                      <div className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg">
+                        <span className="text-gray-400">Unique Clusters</span>
+                        <span className="text-2xl font-bold text-blue-400">{features.crashDedup.stats.uniqueCrashes}</span>
+                      </div>
+                      <div className="mt-4">
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-400">Efficiency Rate</span>
+                          <span className="text-green-400 font-bold">{features.crashDedup.deduplicationRate}%</span>
+                        </div>
+                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-green-500"
+                            style={{ width: `${features.crashDedup.deduplicationRate}%` }}
+                          />
                         </div>
                       </div>
-                      {!seed.isGolden && (
-                        <button
-                          onClick={() => onPromoteToGolden?.(seed.id)}
-                          className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded transition-colors text-sm font-semibold"
-                        >
-                          Promote to Golden
-                        </button>
-                      )}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
-            </motion.div>
-          )}
+            )}
 
-          {/* Export & CI Tab */}
-          {activeTab === 'export' && (
-            <motion.div
-              key="export"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              {/* SARIF Export */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <GitBranch className="text-blue-400" />
-                  SARIF Export (GitHub Code Scanning)
-                </h3>
-                <p className="text-gray-400 mb-4">
-                  Export findings in SARIF format for GitHub Security tab. Includes CVSS scores, CWE tags, and PoCs.
-                </p>
-                <div className="flex gap-4">
+            {activeTab === 'corpus' && (
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                  <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <Database className="text-blue-400" />
+                    Corpus Statistics
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Total Seeds</span>
+                      <span className="font-bold">{features.corpusManager.stats.totalSeeds}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Golden Seeds</span>
+                      <span className="font-bold text-yellow-400">{features.corpusManager.stats.goldenSeeds}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Avg Coverage</span>
+                      <span className="font-bold text-green-400">{features.corpusManager.stats.avgCoverageScore.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                  <h3 className="font-bold text-lg mb-4">Top Performing Seeds</h3>
+                  <div className="space-y-3">
+                    {features.corpusManager.topSeeds.map(seed => (
+                      <div key={seed.id} className="flex justify-between items-center bg-gray-900/50 p-3 rounded">
+                        <span className="font-mono text-sm text-gray-300">{seed.id.substring(0, 8)}</span>
+                        <div className="flex gap-3 text-sm">
+                          <span className="text-blue-400">Cov: {seed.coverageScore}%</span>
+                          <span className="text-yellow-400">⚡ {seed.energy}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'export' && (
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                  <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <GitBranch className="text-purple-400" />
+                    SARIF Export
+                  </h3>
+                  <p className="text-gray-400 mb-6">
+                    Export findings in SARIF 2.1.0 format for integration with GitHub Code Scanning.
+                  </p>
                   <button
                     onClick={onExportSARIF}
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors flex items-center gap-2"
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
                   >
                     <Download size={20} />
-                    Export SARIF Report
+                    Download SARIF Report
                   </button>
-                  <div className="flex items-center gap-2 px-4 py-3 bg-gray-900 rounded-lg">
-                    <FileText className="text-gray-400" size={20} />
-                    <span className="text-gray-400">{features.sarifExport.vulnerabilityCount} vulnerabilities</span>
+                  <div className="mt-4 text-center text-sm text-gray-500">
+                    {features.sarifExport.vulnerabilityCount} vulnerabilities ready to export
                   </div>
-                  {features.sarifExport.lastExport && (
-                    <div className="flex items-center gap-2 px-4 py-3 bg-gray-900 rounded-lg">
-                      <Clock className="text-gray-400" size={20} />
-                      <span className="text-gray-400">
-                        Last: {new Date(features.sarifExport.lastExport).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Test Generation */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <FileCode className="text-green-400" />
-                  Property-Based Test Generation
-                </h3>
-                <p className="text-gray-400 mb-4">
-                  Generate regression tests from minimized crashing inputs for your testing framework.
-                </p>
-                <div className="flex flex-wrap gap-3 mb-4">
-                  {['jest', 'pytest', 'junit', 'mocha', 'go'].map((framework) => (
+                  <div className="mt-6 border-t border-gray-700 pt-6">
+                    <h4 className="font-semibold text-sm text-gray-400 mb-3 uppercase tracking-wider">Reports & Compliance</h4>
                     <button
-                      key={framework}
-                      onClick={() => setSelectedFramework(framework)}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                        selectedFramework === framework
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      }`}
+                      className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors mb-2"
                     >
-                      {framework}
+                      <FileText size={20} className="text-blue-400" />
+                      Download Executive Summary
                     </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => onGenerateTests?.(selectedFramework)}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition-colors flex items-center gap-2"
-                >
-                  <FileCode size={20} />
-                  Generate {selectedFramework} Tests
-                </button>
-                <p className="mt-4 text-sm text-gray-500">
-                  {features.testExport.generatedTests} tests generated across {features.testExport.frameworks.length} frameworks
-                </p>
-              </div>
-
-              {/* GitHub Actions Workflow */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-xl font-bold mb-4">GitHub Actions Workflow</h3>
-                <p className="text-gray-400 mb-4">
-                  Add automated fuzzing to your CI/CD pipeline with inline PR comments.
-                </p>
-                <button
-                  onClick={() => {/* Download workflow */}}
-                  className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition-colors flex items-center gap-2"
-                >
-                  <Download size={20} />
-                  Download Workflow YAML
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* API Replayer Tab */}
-          {activeTab === 'replay' && (
-            <motion.div
-              key="replay"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              {/* Import Section */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Upload className="text-blue-400" />
-                  Import API Traffic
-                </h3>
-                <p className="text-gray-400 mb-4">
-                  Import Postman collections or HAR files to replay and fuzz API requests.
-                </p>
-                <div className="flex gap-4">
-                  <label className="flex-1">
-                    <input
-                      type="file"
-                      accept=".json,.har"
-                      onChange={(e) => e.target.files?.[0] && onImportPostman?.(e.target.files[0])}
-                      className="hidden"
-                    />
-                    <div className="px-6 py-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors text-center cursor-pointer">
-                      Import Postman Collection
-                    </div>
-                  </label>
-                  <label className="flex-1">
-                    <input
-                      type="file"
-                      accept=".har"
-                      onChange={(e) => e.target.files?.[0] && onImportPostman?.(e.target.files[0])}
-                      className="hidden"
-                    />
-                    <div className="px-6 py-4 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition-colors text-center cursor-pointer">
-                      Import HAR File
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              {/* Session Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-400">Active Sessions</h3>
-                    <Play className="text-green-400" size={24} />
-                  </div>
-                  <p className="text-3xl font-bold text-white">{features.apiReplayer.sessions}</p>
-                </div>
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-400">Requests Replayed</h3>
-                    <TrendingUp className="text-blue-400" size={24} />
-                  </div>
-                  <p className="text-3xl font-bold text-white">{features.apiReplayer.requestsReplayed}</p>
-                </div>
-              </div>
-
-              {/* Features */}
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                <h3 className="text-xl font-bold mb-4">Supported Features</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { name: 'OAuth2 Token Management', desc: 'Auto-refresh expired tokens' },
-                    { name: 'JWT Handling', desc: 'Capture and replay JWTs' },
-                    { name: 'Session Tracking', desc: 'Maintain stateful sessions' },
-                    { name: 'Request Mutation', desc: 'Fuzz headers, body, and params' },
-                    { name: 'Variable Extraction', desc: 'Capture IDs and tokens' },
-                    { name: 'Sequence Testing', desc: 'Test API call sequences' }
-                  ].map((feature, index) => (
-                    <motion.div
-                      key={feature.name}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="bg-gray-900 border border-gray-700 rounded-lg p-4"
+                    <button
+                      className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
                     >
-                      <div className="flex items-start gap-3">
-                        <CheckCircle className="text-green-400 flex-shrink-0 mt-1" size={20} />
-                        <div>
-                          <h4 className="font-semibold text-white mb-1">{feature.name}</h4>
-                          <p className="text-sm text-gray-400">{feature.desc}</p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      <Shield size={20} className="text-green-400" />
+                      View ISO 27001 Compliance Map
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                  <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <FileCode className="text-blue-400" />
+                    Test Generation
+                  </h3>
+                  <div className="flex gap-2 mb-6">
+                    {['jest', 'pytest', 'junit', 'mocha', 'go'].map(fw => (
+                      <button
+                        key={fw}
+                        onClick={() => setSelectedFramework(fw)}
+                        className={`px-3 py-1 rounded text-sm uppercase ${selectedFramework === fw
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-700 text-gray-400'
+                          }`}
+                      >
+                        {fw}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => onGenerateTests?.(selectedFramework)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Zap size={20} />
+                    Generate Regression Tests
+                  </button>
                 </div>
               </div>
-            </motion.div>
-          )}
+            )}
+
+            {activeTab === 'replay' && (
+              <div className="space-y-6">
+                <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                  <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <Play className="text-orange-400" />
+                    API Session Replay
+                  </h3>
+                  <div className="border-2 border-dashed border-gray-700 rounded-xl p-8 text-center hover:border-orange-500/50 transition-colors">
+                    <Upload className="mx-auto text-gray-500 mb-4" size={32} />
+                    <p className="text-gray-300 font-medium mb-2">Drop Postman Collection or HAR file</p>
+                    <p className="text-sm text-gray-500 mb-4">Supports OAuth2 auto-refresh tokens</p>
+                    <input
+                      type="file"
+                      className="hidden"
+                      id="api-import"
+                      onChange={(e) => e.target.files?.[0] && onImportPostman?.(e.target.files[0])}
+                    />
+                    <label
+                      htmlFor="api-import"
+                      className="inline-block bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg cursor-pointer transition-colors"
+                    >
+                      Select File
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
         </AnimatePresence>
       </div>
     </div>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Search, ChevronRight, Clock, Tag, BookOpen, 
-  ExternalLink, Copy, Check, Menu, X, ArrowLeft, Shield
+import {
+  Search, ChevronRight, Clock, Tag, BookOpen,
+  Copy, Check, Menu, X, ArrowLeft, Shield, FileText, Hash
 } from 'lucide-react';
 import { documentationService, DocSection, DocItem } from '../services/documentationService';
+import { NavHeader } from './NavHeader';
 
 interface DocumentationPageProps {
   onNavigate?: (page: 'landing' | 'dashboard' | 'docs' | 'pricing' | 'about') => void;
@@ -16,10 +17,9 @@ export const DocumentationPage: React.FC<DocumentationPageProps> = ({ onNavigate
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<DocItem[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Set first doc as default
     if (sections.length > 0 && sections[0].items.length > 0 && !selectedDoc) {
       setSelectedDoc(sections[0].items[0]);
     }
@@ -41,191 +41,82 @@ export const DocumentationPage: React.FC<DocumentationPageProps> = ({ onNavigate
   };
 
   const renderMarkdown = (content: string) => {
-    // Simple markdown renderer (in production, use a library like react-markdown)
-    const lines = content.split('\n');
-    const elements: React.ReactElement[] = [];
-    let inCodeBlock = false;
-    let codeBlockContent = '';
-    let codeLanguage = '';
-
-    lines.forEach((line, index) => {
-      if (line.startsWith('```')) {
-        if (inCodeBlock) {
-          elements.push(
-            <div key={`code-${index}`} className="relative my-4 rounded-lg bg-slate-900 p-4">
-              <button
-                onClick={() => handleCopyCode(codeBlockContent, `code-${index}`)}
-                className="absolute right-2 top-2 rounded bg-slate-800 p-2 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
-              >
-                {copiedCode === `code-${index}` ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </button>
-              <pre className="overflow-x-auto">
-                <code className={`language-${codeLanguage} text-sm text-slate-300`}>
-                  {codeBlockContent}
-                </code>
-              </pre>
-            </div>
-          );
-          codeBlockContent = '';
-          inCodeBlock = false;
-        } else {
-          inCodeBlock = true;
-          codeLanguage = line.replace('```', '').trim();
-        }
-      } else if (inCodeBlock) {
-        codeBlockContent += line + '\n';
-      } else if (line.startsWith('# ')) {
-        elements.push(
-          <h1 key={index} className="text-4xl font-bold text-white mb-6 mt-8">
-            {line.replace('# ', '')}
-          </h1>
-        );
-      } else if (line.startsWith('## ')) {
-        elements.push(
-          <h2 key={index} className="text-3xl font-bold text-white mb-4 mt-8">
-            {line.replace('## ', '')}
-          </h2>
-        );
-      } else if (line.startsWith('### ')) {
-        elements.push(
-          <h3 key={index} className="text-2xl font-semibold text-white mb-3 mt-6">
-            {line.replace('### ', '')}
-          </h3>
-        );
-      } else if (line.startsWith('- ') || line.startsWith('* ')) {
-        elements.push(
-          <li key={index} className="text-slate-300 ml-6 mb-2">
-            {line.replace(/^[*-] /, '')}
-          </li>
-        );
-      } else if (line.trim()) {
-        elements.push(
-          <p key={index} className="text-slate-300 mb-4 leading-relaxed">
-            {line}
-          </p>
-        );
-      }
+    return content.split('\n').map((line, index) => {
+      if (line.startsWith('# ')) return <h1 key={index} className="text-4xl font-bold mb-6 mt-10 text-white tracking-tight border-b border-gray-800 pb-4">{line.replace('# ', '')}</h1>;
+      if (line.startsWith('## ')) return <h2 key={index} className="text-2xl font-bold mb-4 mt-8 text-white flex items-center gap-2"><span className="text-blue-500">##</span> {line.replace('## ', '')}</h2>;
+      if (line.startsWith('### ')) return <h3 key={index} className="text-xl font-semibold mb-3 mt-6 text-gray-200">{line.replace('### ', '')}</h3>;
+      if (line.startsWith('- ')) return <li key={index} className="ml-4 mb-2 text-gray-300 list-disc marker:text-blue-500">{line.replace('- ', '')}</li>;
+      if (line.trim() === '') return <div key={index} className="h-4"></div>;
+      return <p key={index} className="mb-3 text-gray-300 leading-7 text-lg">{line}</p>;
     });
-
-    return elements;
   };
 
-  const relatedDocs = selectedDoc 
+  const relatedDocs = selectedDoc
     ? documentationService.getRelatedDocs(selectedDoc.id)
     : [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-900/80 backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              {onNavigate && (
-                <motion.button
-                  onClick={() => onNavigate('landing')}
-                  whileHover={{ scale: 1.05, x: -5 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition-colors"
-                  title="Back to Home"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </motion.button>
-              )}
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden rounded-lg bg-slate-800 p-2 text-white hover:bg-slate-700"
-              >
-                {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
-              <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onNavigate?.('landing')}>
-                <Shield className="h-8 w-8 text-blue-400" />
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 text-transparent bg-clip-text">
-                    FuzzForge
-                  </h1>
-                  <p className="text-xs text-slate-400">Documentation</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Search */}
-            <div className="relative hidden md:block w-96">
-              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search documentation..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg bg-slate-800 py-2 pl-10 pr-4 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              
-              {/* Search Results Dropdown */}
-              <AnimatePresence>
-                {searchResults.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="absolute top-full mt-2 w-full rounded-lg bg-slate-800 border border-slate-700 shadow-xl overflow-hidden"
-                  >
-                    {searchResults.map((result) => (
-                      <button
-                        key={result.id}
-                        onClick={() => {
-                          setSelectedDoc(result);
-                          setSearchQuery('');
-                          setSearchResults([]);
-                        }}
-                        className="w-full px-4 py-3 text-left hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
-                      >
-                        <div className="font-medium text-white">{result.title}</div>
-                        <div className="text-sm text-slate-400">{result.category}</div>
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#0A0A0F] text-gray-300">
+      <NavHeader onNavigate={onNavigate} />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex gap-8">
-          {/* Sidebar */}
-          <AnimatePresence>
-            {(sidebarOpen || window.innerWidth >= 1024) && (
-              <motion.aside
-                initial={{ x: -300, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -300, opacity: 0 }}
-                className="fixed lg:sticky top-20 left-0 h-[calc(100vh-5rem)] w-80 overflow-y-auto bg-slate-900/95 lg:bg-transparent backdrop-blur-lg lg:backdrop-blur-none p-4 lg:p-0 z-40"
-              >
+      <div className="pt-24 pb-12">
+        <div className="container mx-auto px-4 max-w-7xl">
+          <div className="flex flex-col lg:flex-row gap-12">
+
+            {/* Mobile Menu Button (visible only on small screens) */}
+            <button
+              className="lg:hidden flex items-center gap-2 text-white mb-4 bg-gray-800 p-3 rounded-lg w-full"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              <Menu /> {mobileMenuOpen ? 'Close Menu' : 'Browse Topics'}
+            </button>
+
+            {/* Sidebar Navigation */}
+            <aside className={`lg:w-72 flex-shrink-0 ${mobileMenuOpen ? 'block' : 'hidden lg:block'}`}>
+              <div className="sticky top-28 space-y-8">
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-800 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-blue-500 transition-colors text-white placeholder-gray-600"
+                  />
+                  {/* Search Dropdown */}
+                  {searchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#1A1A23] border border-gray-700 rounded-lg shadow-2xl z-50 overflow-hidden">
+                      {searchResults.map(result => (
+                        <button
+                          key={result.id}
+                          onClick={() => { setSelectedDoc(result); setSearchQuery(''); }}
+                          className="w-full text-left px-4 py-3 hover:bg-blue-600/20 text-sm transition-colors block border-b border-gray-800 last:border-0"
+                        >
+                          <span className="font-bold text-white block">{result.title}</span>
+                          <span className="text-xs text-gray-400">{result.category}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Nav Items */}
                 <nav className="space-y-6">
-                  {sections.map((section) => (
+                  {sections.map(section => (
                     <div key={section.id}>
-                      <div className="mb-3 flex items-center space-x-2">
-                        <span className="text-2xl">{section.icon}</span>
-                        <h3 className="font-semibold text-white">{section.title}</h3>
+                      <div className="flex items-center gap-2 mb-3 text-xs font-bold text-gray-500 uppercase tracking-widest pl-2">
+                        <span className="text-lg">{section.icon}</span> {section.title}
                       </div>
                       <div className="space-y-1">
-                        {section.items.map((item) => (
+                        {section.items.map(item => (
                           <button
                             key={item.id}
-                            onClick={() => {
-                              setSelectedDoc(item);
-                              setSidebarOpen(false);
-                            }}
-                            className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                              selectedDoc?.id === item.id
-                                ? 'bg-blue-600 text-white'
-                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                            }`}
+                            onClick={() => { setSelectedDoc(item); setMobileMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all border-l-2 ${selectedDoc?.id === item.id
+                                ? 'bg-blue-900/10 text-blue-400 border-blue-500 font-medium'
+                                : 'text-gray-400 hover:text-white border-transparent hover:bg-gray-800'
+                              }`}
                           >
                             {item.title}
                           </button>
@@ -234,128 +125,104 @@ export const DocumentationPage: React.FC<DocumentationPageProps> = ({ onNavigate
                     </div>
                   ))}
                 </nav>
-              </motion.aside>
-            )}
-          </AnimatePresence>
+              </div>
+            </aside>
 
-          {/* Main Content */}
-          <main className="flex-1 min-w-0">
-            <AnimatePresence mode="wait">
-              {selectedDoc && (
-                <motion.div
-                  key={selectedDoc.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="rounded-lg bg-slate-800/50 backdrop-blur-sm p-8"
-                >
-                  {/* Doc Header */}
-                  <div className="mb-8 border-b border-slate-700 pb-6">
-                    <div className="mb-4 flex flex-wrap items-center gap-3">
-                      {selectedDoc.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="flex items-center space-x-1 rounded-full bg-blue-600/20 px-3 py-1 text-sm text-blue-400"
-                        >
-                          <Tag className="h-3 w-3" />
-                          <span>{tag}</span>
-                        </span>
-                      ))}
-                    </div>
-                    
-                    <div className="flex items-center space-x-4 text-sm text-slate-400">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="h-4 w-4" />
-                        <span>{selectedDoc.readTime}</span>
+            {/* Main Content Area */}
+            <main className="flex-1 min-w-0">
+              <AnimatePresence mode="wait">
+                {selectedDoc && (
+                  <motion.div
+                    key={selectedDoc.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {/* Breadcrumb & Header */}
+                    <div className="mb-10">
+                      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+                        <span>Docs</span>
+                        <ChevronRight className="w-4 h-4" />
+                        <span className="text-blue-400">{selectedDoc.category}</span>
                       </div>
-                      <span>•</span>
-                      <span>Updated {selectedDoc.lastUpdated}</span>
-                    </div>
-                  </div>
+                      <h1 className="text-4xl lg:text-5xl font-bold text-white mb-6">{selectedDoc.title}</h1>
 
-                  {/* Doc Content */}
-                  <article className="prose prose-invert max-w-none">
-                    {renderMarkdown(selectedDoc.content)}
-                  </article>
-
-                  {/* Code Examples */}
-                  {selectedDoc.code && selectedDoc.code.length > 0 && (
-                    <div className="mt-12">
-                      <h3 className="text-2xl font-bold text-white mb-6">Code Examples</h3>
-                      {selectedDoc.code.map((example, index) => (
-                        <div key={index} className="mb-6">
-                          {example.title && (
-                            <h4 className="text-lg font-semibold text-white mb-3">{example.title}</h4>
-                          )}
-                          <div className="relative rounded-lg bg-slate-900 p-4">
-                            <button
-                              onClick={() => handleCopyCode(example.code, `example-${index}`)}
-                              className="absolute right-2 top-2 rounded bg-slate-800 p-2 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
-                            >
-                              {copiedCode === `example-${index}` ? (
-                                <Check className="h-4 w-4" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </button>
-                            <pre className="overflow-x-auto">
-                              <code className={`language-${example.language} text-sm text-slate-300`}>
-                                {example.code}
-                              </code>
-                            </pre>
-                          </div>
+                      <div className="flex flex-wrap items-center gap-6 text-sm text-gray-400 pb-8 border-b border-gray-800">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          {selectedDoc.readTime} read
                         </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Related Docs */}
-                  {relatedDocs.length > 0 && (
-                    <div className="mt-12 rounded-lg bg-slate-900/50 p-6">
-                      <h3 className="text-xl font-bold text-white mb-4">Related Documentation</h3>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        {relatedDocs.map((doc) => (
-                          <button
-                            key={doc.id}
-                            onClick={() => setSelectedDoc(doc)}
-                            className="group flex items-center justify-between rounded-lg bg-slate-800 p-4 text-left hover:bg-slate-700 transition-colors"
-                          >
-                            <div>
-                              <div className="font-medium text-white">{doc.title}</div>
-                              <div className="text-sm text-slate-400">{doc.readTime}</div>
-                            </div>
-                            <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-white transition-colors" />
-                          </button>
-                        ))}
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Last updated: {selectedDoc.lastUpdated}
+                        </div>
+                        <div className="flex gap-2">
+                          {selectedDoc.tags.map(tag => (
+                            <span key={tag} className="px-2 py-0.5 rounded-full bg-gray-800 text-gray-300 text-xs border border-gray-700">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  )}
 
-                  {/* Feedback */}
-                  <div className="mt-12 rounded-lg border border-slate-700 bg-slate-900/30 p-6">
-                    <h4 className="text-lg font-semibold text-white mb-4">Was this helpful?</h4>
-                    <div className="flex items-center space-x-4">
-                      <button className="px-6 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors">
-                        👍 Yes
-                      </button>
-                      <button className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors">
-                        👎 No
-                      </button>
-                      <a
-                        href="https://github.com/fuzzforge/docs"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-auto flex items-center space-x-2 text-blue-400 hover:text-blue-300 transition-colors"
-                      >
-                        <span>Edit on GitHub</span>
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
+                    {/* Content Body */}
+                    <article className="prose prose-invert max-w-none text-gray-300">
+                      {renderMarkdown(selectedDoc.content)}
+                    </article>
+
+                    {/* Code Snippets */}
+                    {selectedDoc.code && selectedDoc.code.map((snippet, idx) => (
+                      <div key={idx} className="my-8 rounded-xl overflow-hidden border border-gray-800 bg-[#0F0F16] shadow-2xl">
+                        <div className="flex items-center justify-between px-4 py-3 bg-[#181820] border-b border-gray-800">
+                          <span className="text-xs font-mono text-gray-400">{snippet.language}</span>
+                          <button
+                            onClick={() => handleCopyCode(snippet.code, `code-${idx}`)}
+                            className="text-gray-500 hover:text-white transition-colors"
+                          >
+                            {copiedCode === `code-${idx}` ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <div className="p-6 overflow-x-auto">
+                          <pre className="text-sm font-mono text-blue-100 leading-relaxed">
+                            <code>{snippet.code}</code>
+                          </pre>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Feedback & Footer */}
+                    <div className="mt-20 pt-10 border-t border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-6">
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm font-medium">Was this helpful?</span>
+                        <button className="px-4 py-2 bg-gray-900 border border-gray-700 rounded-full text-sm hover:border-green-500 hover:text-green-400 transition-colors">👍 Yes</button>
+                        <button className="px-4 py-2 bg-gray-900 border border-gray-700 rounded-full text-sm hover:border-red-500 hover:text-red-400 transition-colors">👎 No</button>
+                      </div>
+
                     </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </main>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </main>
+
+            {/* Right Sidebar (On This Page) - Hidden on Mobile */}
+            <aside className="hidden xl:block w-64 flex-shrink-0">
+              <div className="sticky top-28">
+                <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4">On This Page</h4>
+                <ul className="space-y-3 border-l border-gray-800 pl-4">
+                  {selectedDoc?.content.split('\n').filter(l => l.startsWith('## ')).map((header, i) => (
+                    <li key={i}>
+                      <a href="#" className="text-sm text-gray-500 hover:text-blue-400 transition-colors block">
+                        {header.replace('## ', '')}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </aside>
+
+          </div>
         </div>
       </div>
     </div>
