@@ -130,6 +130,7 @@ model Project {
   scans Scan[]
 
   @@index([userId])
+  @@index([userId, createdAt])
   @@map("projects")
 }
 
@@ -170,6 +171,8 @@ model Scan {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  @@index([projectId, status, createdAt])
+  @@index([userId, status])
   @@map("scans")
 }
 
@@ -254,6 +257,8 @@ model Vulnerability {
   @@index([severity])
   @@index([status])
   @@index([category])
+  @@index([severity, createdAt])
+  @@index([status, scanId])
   @@map("vulnerabilities")
 }
 
@@ -404,4 +409,80 @@ model Webhook {
 
   @@index([userId])
   @@map("webhooks")
+}
+
+// ===== Gamification =====
+model Achievement {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  icon        String
+  points      Int
+  tier        AchievementTier
+  requirement Json     // { type: string, threshold: number }
+  createdAt   DateTime @default(now())
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+enum AchievementTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+model UserAchievement {
+  id            String   @id @default(uuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+model UserProgress {
+  id                           String   @id @default(uuid())
+  userId                       String   @unique
+  totalPoints                  Int      @default(0)
+  level                        Int      @default(1)
+  vulnerabilitiesFound         Int      @default(0)
+  criticalVulnerabilitiesFound Int      @default(0)
+  codeScanned                  Int      @default(0)
+  fixesApplied                 Int      @default(0)
+  scansDone                    Int      @default(0)
+  helpedOthers                 Int      @default(0)
+  streak                       Int      @default(0)
+  lastActiveDate               DateTime @default(now())
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  @@index([totalPoints])
+  @@index([level])
+  @@map("user_progress")
+}
+
+// ===== Auto-Fix Results =====
+model AutoFix {
+  id              String   @id @default(uuid())
+  vulnerabilityId String?
+  userId          String
+  originalCode    String
+  patchedCode     String
+  tests           String?
+  explanation     String
+  confidence      Float
+  applied         Boolean  @default(false)
+  appliedAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([vulnerabilityId])
+  @@map("auto_fixes")
 }

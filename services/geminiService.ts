@@ -11,7 +11,7 @@ import { ASTAnalyzer, type SecurityPattern } from './astAnalyzer';
 import { JavaScriptFuzzingEngine, generateVulnerabilityFromFuzz, type FuzzResult } from './fuzzingEngine';
 
 // API Configuration - Using secure backend proxy
-const API_PROXY_URL = import.meta.env.VITE_API_PROXY_URL || "http://localhost:3002/api/analyze";
+const API_PROXY_URL = (typeof process !== 'undefined' && process.env?.VITE_API_PROXY_URL) || "http://localhost:3002/api/analyze";
 
 console.log("🔧 Module loaded - Using API Proxy:", API_PROXY_URL);
 
@@ -159,18 +159,18 @@ async function callMistralAPI(systemPrompt: string, userPrompt: string, response
         if (!response.ok) {
             const errorData = await response.json();
             console.error("❌ API Error Response:", errorData);
-            throw new Error(`API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
+            throw new Error(`API error: ${response.status} - ${(errorData as any).error || 'Unknown error'}`);
         }
 
         const data = await response.json();
         console.log("✅ Response received successfully");
         
-        if (!data.content) {
+        if (!(data as any).content) {
             console.error("❌ Invalid response structure:", data);
             throw new Error("Invalid response structure from API proxy");
         }
         
-        return data.content;
+        return (data as any).content;
     } catch (error) {
         console.error("❌ API call failed:", error);
         

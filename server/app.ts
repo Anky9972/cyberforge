@@ -18,9 +18,15 @@ import projectRoutes from './routes/projects.js';
 import scanRoutes from './routes/scans.js';
 import vulnerabilityRoutes from './routes/vulnerabilities.js';
 import scanMetricsRoutes from './routes/scanMetrics.js';
+import gamificationRoutes from './routes/gamification.js';
+import autofixRoutes from './routes/autofix.js';
+import mlRoutes from './routes/ml.js';
+import fuzzingRoutes from './routes/fuzzing.js';
+import analysesRoutes from './routes/analyses.js';
 
 // Import services
 import { aiService } from '../services/aiProviderService.js';
+import { securityMiddleware } from './middleware/securityMiddleware.js';
 
 // Load environment variables from root directory
 const __filename = fileURLToPath(import.meta.url);
@@ -32,11 +38,8 @@ const prisma = new PrismaClient();
 
 // ===== MIDDLEWARE =====
 
-// Security
-app.use(helmet({
-  contentSecurityPolicy: process.env.NODE_ENV === 'production',
-  crossOriginEmbedderPolicy: false,
-}));
+// Security - Enhanced middleware
+app.use(securityMiddleware);
 
 // CORS Configuration
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -106,6 +109,11 @@ app.get('/', (req, res) => {
       scans: '/api/scans (authenticated)',
       vulnerabilities: '/api/vulnerabilities (authenticated)',
       scanMetrics: '/api/scan-metrics (authenticated)',
+      gamification: '/api/gamification (authenticated)',
+      autofix: '/api/autofix (authenticated)',
+      ml: '/api/ml (authenticated)',
+      fuzzing: '/api/fuzzing (authenticated)',
+      analyses: '/api/analyses (authenticated)',
     }
   });
 });
@@ -124,6 +132,21 @@ app.use('/api/vulnerabilities', vulnerabilityRoutes);
 
 // Scan metrics routes (requires authentication)
 app.use('/api/scan-metrics', scanMetricsRoutes);
+
+// Gamification routes (requires authentication)
+app.use('/api/gamification', gamificationRoutes);
+
+// Auto-fix routes (requires authentication)
+app.use('/api/autofix', autofixRoutes);
+
+// ML prediction routes (requires authentication)
+app.use('/api/ml', mlRoutes);
+
+// Fuzzing routes (requires authentication)
+app.use('/api/fuzzing', fuzzingRoutes);
+
+// Analysis history routes (requires authentication)
+app.use('/api/analyses', analysesRoutes);
 
 // Legacy analysis endpoint (backward compatible)
 app.post('/api/analyze', async (req, res) => {
@@ -206,6 +229,33 @@ async function startServer() {
   try {
     // Connect to database
     await connectDatabase();
+
+    // Initialize distributed fuzzing service
+    try {
+      const { distributedFuzzingService } = await import('../services/distributedFuzzingService.js');
+      await distributedFuzzingService.initialize();
+      console.log('✅ Distributed fuzzing service initialized');
+    } catch (error) {
+      console.warn('⚠️  Distributed fuzzing service not available:', error);
+    }
+
+    // Initialize parallel fuzzing engine
+    try {
+      const { parallelFuzzingEngine } = await import('../services/parallelFuzzingEngine.js');
+      await parallelFuzzingEngine.initialize();
+      console.log('✅ Parallel fuzzing engine initialized');
+    } catch (error) {
+      console.warn('⚠️  Parallel fuzzing engine not available:', error);
+    }
+
+    // Initialize symbolic executor
+    try {
+      const { enhancedSymbolicExecutor } = await import('../services/enhancedSymbolicExecutor.js');
+      await enhancedSymbolicExecutor.initialize();
+      console.log('✅ Symbolic executor initialized');
+    } catch (error) {
+      console.warn('⚠️  Symbolic executor not available:', error);
+    }
 
     // Start server
     app.listen(PORT, HOST, () => {

@@ -198,7 +198,7 @@ export class SymbolicExecutionEngine {
      * Generate diverse object inputs based on seed
      */
     private generateObjectInput(seed: number): any {
-        const strategies = [
+        const testCases: any[] = [
             {},
             { __proto__: { polluted: true } },
             { constructor: { prototype: { polluted: true } } },
@@ -207,6 +207,7 @@ export class SymbolicExecutionEngine {
             null,
             { a: 'b'.repeat(seed % 100) }
         ];
+        const strategies: any[] = testCases;
         return strategies[seed % strategies.length];
     }
 

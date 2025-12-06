@@ -69,13 +69,13 @@ app.post('/api/analyze', async (req, res) => {
 
         const data = await response.json();
         
-        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        if (!(data as any).choices || !(data as any).choices[0] || !(data as any).choices[0].message) {
             return res.status(500).json({ error: 'Invalid response structure from AI service' });
         }
 
         res.json({ 
-            content: data.choices[0].message.content,
-            usage: data.usage // Return token usage for cost tracking
+            content: (data as any).choices[0].message.content,
+            usage: (data as any).usage // Return token usage for cost tracking
         });
     } catch (error) {
         console.error("API call failed:", error);

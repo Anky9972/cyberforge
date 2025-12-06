@@ -270,7 +270,14 @@ export class AuthService {
       }
     });
 
-    // TODO: Send reset email
+    // Send reset email
+    try {
+      const { emailService } = await import('./emailService.js');
+      await emailService.sendPasswordResetEmail(user.email, user.firstName || user.username || 'User', resetToken);
+    } catch (error) {
+      console.error('Failed to send password reset email:', error);
+      // Continue even if email fails - token is saved
+    }
 
     return resetToken; // In production, don't return this - send via email
   }
@@ -344,11 +351,11 @@ export class AuthService {
     };
 
     const accessToken = jwt.sign(payload, this.jwtSecret, {
-      expiresIn: this.jwtExpiry
+      expiresIn: parseInt(this.jwtExpiry as string) || 3600
     });
 
     const refreshToken = jwt.sign(payload, this.jwtRefreshSecret, {
-      expiresIn: this.jwtRefreshExpiry
+      expiresIn: parseInt(this.jwtRefreshExpiry as string) || 604800
     });
 
     // Calculate refresh token expiration

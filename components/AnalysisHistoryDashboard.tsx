@@ -37,7 +37,6 @@ export const AnalysisHistoryDashboard: React.FC<AnalysisHistoryDashboardProps> =
   const loadAnalyses = async () => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API call
       const response = await fetch('/api/analyses', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -48,7 +47,7 @@ export const AnalysisHistoryDashboard: React.FC<AnalysisHistoryDashboardProps> =
         const data = await response.json();
         setAnalyses(data);
       } else {
-        // Fallback to localStorage for now
+        // Fallback to localStorage if API fails
         const saved = localStorage.getItem('analysis_history');
         if (saved) {
           setAnalyses(JSON.parse(saved));
@@ -74,21 +73,25 @@ export const AnalysisHistoryDashboard: React.FC<AnalysisHistoryDashboardProps> =
     if (!confirm('Are you sure you want to delete this analysis?')) return;
     
     try {
-      // TODO: API call
-      await fetch(`/api/analyses/${id}`, {
+      const response = await fetch(`/api/analyses/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
       
-      setAnalyses(prev => prev.filter(a => a.id !== id));
-      
-      // Update localStorage
-      const updated = analyses.filter(a => a.id !== id);
-      localStorage.setItem('analysis_history', JSON.stringify(updated));
+      if (response.ok) {
+        setAnalyses(prev => prev.filter(a => a.id !== id));
+        
+        // Update localStorage backup
+        const updated = analyses.filter(a => a.id !== id);
+        localStorage.setItem('analysis_history', JSON.stringify(updated));
+      } else {
+        alert('Failed to delete analysis');
+      }
     } catch (error) {
       console.error('Failed to delete analysis:', error);
+      alert('Failed to delete analysis');
     }
   };
 

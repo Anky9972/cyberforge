@@ -32,8 +32,8 @@ export class JavaASTAnalyzer {
                     : [ast.children.typeDeclaration];
 
                 for (const typeDecl of typeDeclarations) {
-                    if (typeDecl.children?.classDeclaration) {
-                        this.extractClassInfo(typeDecl.children.classDeclaration, nodes, edges);
+                    if ((typeDecl as any).children?.classDeclaration) {
+                        this.extractClassInfo((typeDecl as any).children.classDeclaration, nodes, edges);
                     }
                 }
             }

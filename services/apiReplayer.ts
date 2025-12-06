@@ -431,7 +431,7 @@ class APITrafficReplayerService {
     });
 
     const data = await response.json();
-    return data.access_token;
+    return (data as any).access_token;
   }
 
   /**
@@ -447,7 +447,7 @@ class APITrafficReplayerService {
     });
 
     const data = await response.json();
-    return data.token || data.access_token;
+    return (data as any).token || (data as any).access_token;
   }
 
   /**

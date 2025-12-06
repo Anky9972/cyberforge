@@ -11,7 +11,7 @@ import type {
     CKGData 
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+const API_BASE_URL = (typeof process !== 'undefined' && process.env?.VITE_API_URL) || 'http://localhost:3002';
 
 interface CreateProjectRequest {
     name: string;
@@ -43,7 +43,7 @@ interface SaveAnalysisResultsRequest {
  */
 function getAuthToken(): string | null {
     try {
-        const authData = localStorage.getItem('auth');
+        const authData = (typeof global !== 'undefined' && (global as any).localStorage) ? (global as any).localStorage.getItem('auth') : null;
         if (authData) {
             const parsed = JSON.parse(authData);
             return parsed.token || null;
@@ -86,8 +86,8 @@ export async function createProject(fileName: string, language?: string): Promis
         }
 
         const data = await response.json();
-        console.log('✅ Project created in database:', data.project.id);
-        return data.project.id;
+        console.log('✅ Project created in database:', (data as any).project.id);
+        return (data as any).project.id;
     } catch (error) {
         console.error('❌ Failed to create project:', error);
         return 'local-project-' + Date.now();
@@ -131,8 +131,8 @@ export async function createScan(
         }
 
         const data = await response.json();
-        console.log('✅ Scan created in database:', data.scan.id);
-        return data.scan.id;
+        console.log('✅ Scan created in database:', (data as any).scan.id);
+        return (data as any).scan.id;
     } catch (error) {
         console.error('❌ Failed to create scan:', error);
         return 'local-scan-' + Date.now();

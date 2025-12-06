@@ -51,8 +51,15 @@ router.get('/', authenticateToken, asyncHandler(async (req: any, res: any) => {
         scan: {
           select: {
             id: true,
+            status: true,
+            createdAt: true,
             project: {
-              select: { id: true, name: true }
+              select: { 
+                id: true, 
+                name: true, 
+                language: true,
+                framework: true
+              }
             }
           }
         }

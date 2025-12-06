@@ -7,9 +7,11 @@ declare global {
   namespace Express {
     interface Request {
       user?: {
+        id: string;
         userId: string;
         email: string;
         role: string;
+        isAdmin?: boolean;
       };
     }
   }
@@ -30,7 +32,10 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     // Verify token
     const decoded = authService.verifyAccessToken(token);
-    req.user = decoded;
+    req.user = {
+      ...decoded,
+      id: decoded.userId
+    };
 
     next();
   } catch (error: any) {
@@ -51,6 +56,7 @@ export const authenticateApiKey = async (req: Request, res: Response, next: Next
 
     const result = await authService.verifyApiKey(apiKey);
     req.user = {
+      id: result.userId,
       userId: result.userId,
       email: result.user.email,
       role: result.user.role
@@ -108,7 +114,10 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 
     if (token) {
       const decoded = authService.verifyAccessToken(token);
-      req.user = decoded;
+      req.user = {
+        ...decoded,
+        id: decoded.userId
+      };
     }
 
     next();

@@ -79,8 +79,8 @@ export class CVEDatabaseIntegration {
             const data = await response.json();
             const cves: CVEDetails[] = [];
 
-            if (data.vulnerabilities && Array.isArray(data.vulnerabilities)) {
-                for (const vuln of data.vulnerabilities.slice(0, 10)) {
+            if ((data as any).vulnerabilities && Array.isArray((data as any).vulnerabilities)) {
+                for (const vuln of (data as any).vulnerabilities.slice(0, 10)) {
                     const cve = vuln.cve;
                     
                     const cvssData = cve.metrics?.cvssMetricV31?.[0] || cve.metrics?.cvssMetricV2?.[0];

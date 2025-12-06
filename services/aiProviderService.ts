@@ -146,13 +146,13 @@ class AIProviderService {
     const data = await response.json();
 
     return {
-      content: data.choices[0].message.content,
+      content: (data as any).choices[0].message.content,
       provider: 'mistral',
       model,
       usage: {
-        promptTokens: data.usage?.prompt_tokens || 0,
-        completionTokens: data.usage?.completion_tokens || 0,
-        totalTokens: data.usage?.total_tokens || 0,
+        promptTokens: (data as any).usage?.prompt_tokens || 0,
+        completionTokens: (data as any).usage?.completion_tokens || 0,
+        totalTokens: (data as any).usage?.total_tokens || 0,
       },
     };
   }
@@ -216,18 +216,18 @@ class AIProviderService {
 
       const data = await response.json();
 
-      if (!data.response) {
+      if (!(data as any).response) {
         throw new Error('Invalid response format from Ollama');
       }
 
       return {
-        content: data.response.trim(),
+        content: (data as any).response.trim(),
         provider: 'ollama',
         model: model,
         usage: {
-          promptTokens: data.prompt_eval_count || 0,
-          completionTokens: data.eval_count || 0,
-          totalTokens: (data.prompt_eval_count || 0) + (data.eval_count || 0),
+          promptTokens: (data as any).prompt_eval_count || 0,
+          completionTokens: (data as any).eval_count || 0,
+          totalTokens: ((data as any).prompt_eval_count || 0) + ((data as any).eval_count || 0),
         },
       };
     } catch (error: any) {
@@ -291,13 +291,13 @@ class AIProviderService {
     const data = await response.json();
 
     return {
-      content: data.choices[0].message.content,
+      content: (data as any).choices[0].message.content,
       provider: 'openai',
       model,
       usage: {
-        promptTokens: data.usage?.prompt_tokens || 0,
-        completionTokens: data.usage?.completion_tokens || 0,
-        totalTokens: data.usage?.total_tokens || 0,
+        promptTokens: (data as any).usage?.prompt_tokens || 0,
+        completionTokens: (data as any).usage?.completion_tokens || 0,
+        totalTokens: (data as any).usage?.total_tokens || 0,
       },
     };
   }
@@ -350,13 +350,13 @@ class AIProviderService {
     const data = await response.json();
 
     return {
-      content: data.content[0].text,
+      content: (data as any).content[0].text,
       provider: 'anthropic',
       model,
       usage: {
-        promptTokens: data.usage?.input_tokens || 0,
-        completionTokens: data.usage?.output_tokens || 0,
-        totalTokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
+        promptTokens: (data as any).usage?.input_tokens || 0,
+        completionTokens: (data as any).usage?.output_tokens || 0,
+        totalTokens: ((data as any).usage?.input_tokens || 0) + ((data as any).usage?.output_tokens || 0),
       },
     };
   }
@@ -411,7 +411,7 @@ class AIProviderService {
     const data = await response.json();
 
     return {
-      content: data.candidates[0].content.parts[0].text,
+      content: (data as any).candidates[0].content.parts[0].text,
       provider: 'google',
       model,
       usage: {
@@ -461,7 +461,7 @@ class AIProviderService {
     const data = await response.json();
 
     return {
-      content: data.response,
+      content: (data as any).response,
       provider: 'local',
       model,
       usage: {
@@ -527,7 +527,7 @@ class AIProviderService {
       }
 
       const data = await response.json();
-      const models = data.models?.map((model: any) => model.name) || [];
+      const models = (data as any).models?.map((model: any) => model.name) || [];
 
       return { running: true, models, error: undefined };
     } catch (error: any) {

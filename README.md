@@ -351,19 +351,36 @@ Before you begin, ensure you have:
 
 ### ⚡ Installation
 
-#### **Option 1: Automated Setup (Recommended)**
+#### **Option 1: One-Command Complete Setup (Recommended) ⭐**
 
 ```powershell
 # Clone the repository
 git clone https://github.com/Anky9972/cyberforge.git
 cd cyberforge
 
-# Run automated setup script (Windows PowerShell)
-.\setup.ps1
+# Run complete setup script (Windows PowerShell)
+.\setup-complete.ps1
 
 # Or for Linux/Mac
-chmod +x setup.sh
-./setup.sh
+chmod +x setup-complete.sh
+./setup-complete.sh
+```
+
+**This will:**
+- ✅ Check all prerequisites
+- ✅ Install dependencies (root + server)
+- ✅ Generate `.env` configuration
+- ✅ Setup PostgreSQL + Redis with Docker
+- ✅ Run database migrations
+- ✅ Pull Docker images for VM execution
+- ✅ Build frontend assets
+
+#### **Option 2: Quick Setup (Basic)**
+
+```powershell
+# For basic setup without Docker
+.\setup.ps1  # Windows
+./setup.sh   # Linux/Mac
 ```
 
 #### **Option 2: Manual Setup**

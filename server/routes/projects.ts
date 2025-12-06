@@ -19,6 +19,18 @@ router.get('/', authenticateToken, asyncHandler(async (req: any, res: any) => {
       where: { userId: req.user.userId },
       orderBy: { createdAt: 'desc' },
       include: {
+        scans: {
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+            _count: {
+              select: { vulnerabilities: true }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 5 // Latest 5 scans per project
+        },
         _count: {
           select: { scans: true }
         }

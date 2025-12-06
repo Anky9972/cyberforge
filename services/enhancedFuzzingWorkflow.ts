@@ -18,7 +18,7 @@ let CoverageFuzzResult: any;
 let SymbolicResult: any;
 
 // Only import in Node.js environment (not browser) - Check for import.meta to detect browser
-const isBrowser = typeof window !== 'undefined' && typeof import.meta !== 'undefined';
+const isBrowser = typeof globalThis !== 'undefined' && typeof (globalThis as any).window !== 'undefined';
 
 if (!isBrowser && typeof process !== 'undefined' && process.versions && process.versions.node) {
     try {

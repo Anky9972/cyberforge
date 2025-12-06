@@ -57,7 +57,7 @@ export const apiRateLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  store: redis ? new RedisStore(redis, 'rl:api:') : undefined,
+  store: redis ? new RedisStore(redis, 'rl:api:') as any : undefined,
   keyGenerator: (req) => {
     // Use user ID if authenticated, otherwise IP
     return req.user?.userId || req.ip || 'unknown';
@@ -73,7 +73,7 @@ export const analysisRateLimiter = rateLimit({
   message: 'Analysis rate limit exceeded. Please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  store: redis ? new RedisStore(redis, 'rl:analysis:') : undefined,
+  store: redis ? new RedisStore(redis, 'rl:analysis:') as any : undefined,
   keyGenerator: (req) => {
     return req.user?.userId || req.ip || 'unknown';
   },
@@ -92,7 +92,7 @@ export const authRateLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  store: redis ? new RedisStore(redis, 'rl:auth:') : undefined,
+  store: redis ? new RedisStore(redis, 'rl:auth:') as any : undefined,
   skipSuccessfulRequests: true, // Don't count successful requests
 });
 
@@ -105,7 +105,7 @@ export const passwordResetRateLimiter = rateLimit({
   message: 'Too many password reset attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  store: redis ? new RedisStore(redis, 'rl:reset:') : undefined,
+  store: redis ? new RedisStore(redis, 'rl:reset:') as any : undefined,
 });
 
 export { redis };

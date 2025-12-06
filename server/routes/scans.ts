@@ -28,7 +28,18 @@ router.get('/', authenticateToken, asyncHandler(async (req: any, res: any) => {
       skip: parseInt(offset as string),
       include: {
         project: {
-          select: { id: true, name: true }
+          select: { id: true, name: true, language: true }
+        },
+        scanMetrics: {
+          select: {
+            analysisTime: true,
+            aiCallsCount: true,
+            totalFunctions: true,
+            totalClasses: true
+          }
+        },
+        _count: {
+          select: { vulnerabilities: true }
         }
       }
     });
