@@ -14,6 +14,7 @@ import { parseZipFile, parseZipFileWithCode } from '../services/zipParser';
 import { EnhancedFuzzingWorkflow } from '../services/enhancedFuzzingWorkflow';
 import { CVEDatabaseIntegration } from '../services/cveIntegration';
 import { createProject, createScan, saveAnalysisResults } from '../services/databaseService';
+import { LargeFileHandler, AnalysisCache } from '../services/largeFileHandler';
 import { 
     GraphIcon, TargetIcon, CodeIcon, BugIcon, ReportIcon, ReconIcon, ShieldIcon,
     SecretIcon, PathIcon, ConfigIcon, AlertIcon
@@ -74,9 +75,93 @@ export const useFuzzingWorkflow = () => {
         let currentLogs: AgentLog[] = [];
 
         try {
-            // Parse the uploaded ZIP file to extract actual code
-            const { summary: fileContent, codeFiles } = await parseZipFileWithCode(file);
-            console.log(`🔬 Extracted ${codeFiles.size} files for AST analysis`);
+            // Show initial parsing progress
+            let parsingProgress = 0;
+            const parsingLog: AgentLog = {
+                agentName: 'File Parser',
+                icon: <ReconIcon />,
+                content: (
+                    <div className="space-y-2">
+                        <p>📦 Extracting and parsing codebase...</p>
+                        <div className="w-full bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                            <div 
+                                className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full transition-all duration-300"
+                                style={{ width: `${parsingProgress}%` }}
+                            />
+                        </div>
+                        <p className="text-xs text-gray-400">{parsingProgress}% complete</p>
+                    </div>
+                ),
+                isLoading: true,
+            };
+            currentLogs.push(parsingLog);
+            setAgentLogs([...currentLogs]);
+
+            // Parse the uploaded ZIP file with progress callback
+            const { summary: fileContent, codeFiles } = await parseZipFileWithCode(file, (progress) => {
+                parsingProgress = progress;
+                parsingLog.content = (
+                    <div className="space-y-2">
+                        <p>📦 Extracting and parsing codebase...</p>
+                        <div className="w-full bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                            <div 
+                                className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full transition-all duration-300"
+                                style={{ width: `${progress}%` }}
+                            />
+                        </div>
+                        <p className="text-xs text-gray-400">{progress}% complete</p>
+                    </div>
+                );
+                currentLogs[0] = parsingLog;
+                setAgentLogs([...currentLogs]);
+            });
+            
+            // Check if this is a large file and apply optimizations
+            const isLargeFile = LargeFileHandler.isLargeFile(file.size);
+            let optimizedFiles = codeFiles;
+            
+            if (isLargeFile) {
+                console.log(`📊 Large file detected (${(file.size/1024/1024).toFixed(1)}MB) - applying optimizations...`);
+                
+                // Filter out irrelevant files
+                optimizedFiles = LargeFileHandler.filterRelevantFiles(codeFiles);
+                
+                // If still too large, use smart sampling
+                if (optimizedFiles.size > 200) {
+                    console.log(`🎯 Too many files (${optimizedFiles.size}) - applying smart sampling...`);
+                    optimizedFiles = LargeFileHandler.smartSample(optimizedFiles);
+                }
+                
+                // Estimate memory impact
+                const memoryEstimate = LargeFileHandler.estimateMemoryImpact(optimizedFiles);
+                console.log(`💾 Estimated memory: ${memoryEstimate.estimatedMB.toFixed(1)}MB`);
+                if (memoryEstimate.warning) {
+                    console.warn(`⚠️ ${memoryEstimate.warning}: ${memoryEstimate.recommendation}`);
+                }
+            }
+            
+            // Update parsing log as complete
+            parsingLog.content = (
+                <div>
+                    <p className="text-green-400">✅ Codebase parsed successfully!</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                        Extracted {codeFiles.size} files 
+                        {isLargeFile && optimizedFiles.size < codeFiles.size && (
+                            <span className="text-blue-400"> (optimized to {optimizedFiles.size} relevant files)</span>
+                        )}
+                    </p>
+                    {isLargeFile && (
+                        <p className="text-xs text-yellow-400 mt-1">
+                            🚀 Large file optimizations applied for better performance
+                        </p>
+                    )}
+                </div>
+            );
+            parsingLog.isLoading = false;
+            currentLogs[0] = parsingLog;
+            setAgentLogs([...currentLogs]);
+            
+            console.log(`🔬 Extracted ${optimizedFiles.size} files for AST analysis`);
             
             // Store file metrics
             setFileCount(codeFiles.size);

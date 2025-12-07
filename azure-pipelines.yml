@@ -1,0 +1,94 @@
+# CyberForge Security Scan for Azure DevOps
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - feature/*
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  CYBERFORGE_API_URL: $(CyberForgeApiUrl)
+  FAIL_ON_SEVERITY: 'high'
+
+stages:
+  - stage: SecurityScan
+    displayName: 'CyberForge Security Scan'
+    jobs:
+      - job: ScanCode
+        displayName: 'Scan for Vulnerabilities'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '18.x'
+            displayName: 'Install Node.js'
+          
+          - script: |
+              npm install -g @cyberforge/cli
+            displayName: 'Install CyberForge CLI'
+          
+          - script: |
+              cyberforge scan \
+                --path $(Build.SourcesDirectory) \
+                --format json \
+                --output $(Build.ArtifactStagingDirectory)/cyberforge-results.json \
+                --fail-on-severity $(FAIL_ON_SEVERITY)
+            displayName: 'Run CyberForge Scan'
+            continueOnError: true
+            env:
+              CYBERFORGE_API_KEY: $(CyberForgeApiKey)
+          
+          - script: |
+              cyberforge sarif \
+                --input $(Build.ArtifactStagingDirectory)/cyberforge-results.json \
+                --output $(Build.ArtifactStagingDirectory)/cyberforge-results.sarif
+            displayName: 'Generate SARIF Report'
+            condition: always()
+          
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)'
+              artifactName: 'CyberForgeResults'
+            displayName: 'Publish Scan Results'
+            condition: always()
+          
+          - script: |
+              echo "📊 Parsing scan results..."
+              
+              CRITICAL=$(jq -r '.summary.critical // 0' $(Build.ArtifactStagingDirectory)/cyberforge-results.json)
+              HIGH=$(jq -r '.summary.high // 0' $(Build.ArtifactStagingDirectory)/cyberforge-results.json)
+              MEDIUM=$(jq -r '.summary.medium // 0' $(Build.ArtifactStagingDirectory)/cyberforge-results.json)
+              LOW=$(jq -r '.summary.low // 0' $(Build.ArtifactStagingDirectory)/cyberforge-results.json)
+              
+              echo "## 🔒 CyberForge Security Summary"
+              echo "- 🔴 Critical: $CRITICAL"
+              echo "- 🟠 High: $HIGH"
+              echo "- 🟡 Medium: $MEDIUM"
+              echo "- 🟢 Low: $LOW"
+              
+              if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+                echo "##vso[task.logissue type=error]Critical or High severity vulnerabilities detected!"
+                echo "##vso[task.complete result=Failed;]Build failed due to security issues"
+                exit 1
+              else
+                echo "✅ No critical vulnerabilities found"
+              fi
+            displayName: 'Analyze Results'
+            condition: always()
+          
+          - task: PublishTestResults@2
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(Build.ArtifactStagingDirectory)/cyberforge-results.json'
+              testRunTitle: 'CyberForge Security Scan'
+            displayName: 'Publish Test Results'
+            condition: always()

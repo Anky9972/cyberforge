@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wand2, Check, X, Copy, Code, TestTube, AlertCircle } from 'lucide-react';
+import { Wand2, Check, X, Copy, Code, TestTube, AlertCircle, Download, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { AutoFixService } from '../services/autoFix';
+import CodeBlock from './CodeBlock';
 
 interface Vulnerability {
   id: string;

@@ -32,7 +32,9 @@ app.use(cors({
   methods: ['GET', 'POST'],
   credentials: true
 }));
-app.use(express.json({ limit: '50mb' }));
+// Increased limits for large codebase analysis
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || "";
 const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";

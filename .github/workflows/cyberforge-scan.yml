@@ -1,0 +1,110 @@
+name: CyberForge Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  cyberforge-scan:
+    runs-on: ubuntu-latest
+    name: Security Vulnerability Scan
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install CyberForge CLI
+        run: |
+          npm install -g @cyberforge/cli
+          # Or if running locally:
+          # npm install
+      
+      - name: Run CyberForge Scan
+        id: scan
+        env:
+          CYBERFORGE_API_URL: ${{ secrets.CYBERFORGE_API_URL || 'http://localhost:3002' }}
+          CYBERFORGE_API_KEY: ${{ secrets.CYBERFORGE_API_KEY }}
+        run: |
+          cyberforge scan \
+            --path . \
+            --format json \
+            --output cyberforge-results.json \
+            --fail-on-severity high
+        continue-on-error: true
+      
+      - name: Upload Results as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cyberforge-results
+          path: cyberforge-results.json
+      
+      - name: Generate SARIF Report
+        if: always()
+        run: |
+          cyberforge sarif \
+            --input cyberforge-results.json \
+            --output cyberforge-results.sarif
+      
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: cyberforge-results.sarif
+          category: cyberforge
+      
+      - name: Comment on Pull Request
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            let results;
+            try {
+              results = JSON.parse(fs.readFileSync('cyberforge-results.json', 'utf8'));
+            } catch (error) {
+              console.log('No results file found');
+              return;
+            }
+            
+            const { critical = 0, high = 0, medium = 0, low = 0 } = results.summary || {};
+            const total = critical + high + medium + low;
+            
+            const comment = `## 🔒 CyberForge Security Scan Results
+            
+| Severity | Count |
+|----------|-------|
+| 🔴 Critical | ${critical} |
+| 🟠 High | ${high} |
+| 🟡 Medium | ${medium} |
+| 🟢 Low | ${low} |
+| **Total** | **${total}** |
+
+${critical + high > 0 ? '⚠️ **Action Required**: Critical or High severity vulnerabilities detected!' : '✅ No critical vulnerabilities found.'}
+
+[View detailed report in Security tab](../security/code-scanning)
+`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+      
+      - name: Fail if Critical/High vulnerabilities found
+        if: steps.scan.outcome == 'failure'
+        run: |
+          echo "❌ Critical or High severity vulnerabilities detected. Build failed."
+          exit 1

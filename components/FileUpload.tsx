@@ -1,7 +1,8 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileArchive, AlertCircle, Sparkles, ShieldCheck, Lock, Scan } from 'lucide-react';
+import { Upload, FileArchive, AlertCircle, Sparkles, ShieldCheck, Lock, Scan, Clock } from 'lucide-react';
+import { UploadOptimizer } from '../services/uploadOptimizer';
 
 interface FileUploadProps {
   onFileUpload: (file: File) => void;
@@ -11,8 +12,9 @@ interface FileUploadProps {
 const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, disabled }) => {
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [estimatedTime, setEstimatedTime] = useState<string | null>(null);
 
-  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+  const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB - increased for large codebases
 
   const validateFile = (file: File): string | null => {
     // Check file extension
@@ -28,6 +30,19 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, disabled }) => {
     // Check for empty file
     if (file.size === 0) {
       return "❌ File is empty";
+    }
+
+    // Show estimated processing time for large files
+    if (file.size > 1024 * 1024) { // > 1MB
+      const estimate = UploadOptimizer.estimateProcessingTime(file.size);
+      const minutes = Math.floor(estimate.estimatedSeconds / 60);
+      const seconds = estimate.estimatedSeconds % 60;
+      const timeStr = minutes > 0 
+        ? `${minutes}m ${seconds}s` 
+        : `${seconds}s`;
+      setEstimatedTime(`⏱️ Estimated time: ~${timeStr}`);
+    } else {
+      setEstimatedTime(null);
     }
 
     return null;
@@ -198,6 +213,16 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, disabled }) => {
           </motion.div>
 
           <div className="space-y-3">
+            {estimatedTime && !disabled && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-900/30 border border-blue-700/50 rounded-lg"
+              >
+                <Clock className="w-4 h-4 text-blue-400" />
+                <span className="text-sm text-blue-300">{estimatedTime}</span>
+              </motion.div>
+            )}
             <p className="text-2xl font-bold">
               {disabled ? (
                 <span className="bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text">

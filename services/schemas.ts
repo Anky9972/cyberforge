@@ -156,7 +156,7 @@ export const VulnerabilityReportSchema = z.object({
 });
 
 // ZIP File Validation Schema
-export const ZIP_MAX_SIZE = 50 * 1024 * 1024; // 50MB
+export const ZIP_MAX_SIZE = 100 * 1024 * 1024; // 100MB - increased for large codebases
 export const ALLOWED_EXTENSIONS = [
     // Code files
     '.py', '.js', '.ts', '.jsx', '.tsx',

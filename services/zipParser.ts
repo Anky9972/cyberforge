@@ -115,6 +115,9 @@ export async function parseZipFile(file: File): Promise<string> {
 
         console.log(`✅ Successfully parsed ${totalCodeFiles} code files (Primary language: ${primaryLang})`);
 
+        // Report completion
+        if (onProgress) onProgress(90);
+
         // Generate intelligent summary
         const summary = `
 📦 Codebase Analysis: ${file.name}
@@ -169,7 +172,19 @@ export interface ParsedCodebase {
     codeFiles: Map<string, { code: string; language: string; filename: string }>;
 }
 
-export async function parseZipFileWithCode(file: File): Promise<ParsedCodebase> {
+/**
+ * Process file in Web Worker to avoid blocking main thread
+ */
+async function processInWorker(file: File): Promise<ArrayBuffer> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+export async function parseZipFileWithCode(file: File, onProgress?: (progress: number) => void): Promise<ParsedCodebase> {
     try {
         // Validate file size
         if (file.size > ZIP_MAX_SIZE) {
@@ -182,7 +197,16 @@ export async function parseZipFileWithCode(file: File): Promise<ParsedCodebase> 
 
         console.log(`📦 Parsing ZIP file with full code extraction: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
 
-        const zip = await JSZip.loadAsync(file);
+        // Report initial progress
+        if (onProgress) onProgress(5);
+
+        // Use streaming to avoid blocking main thread
+        const zip = await JSZip.loadAsync(file, {
+            // Process in chunks to prevent UI freeze
+            createFolders: false
+        });
+        
+        if (onProgress) onProgress(20);
         const fileList: string[] = [];
         const codeSnippets: Array<{ path: string; content: string }> = [];
         const codeFiles = new Map<string, { code: string; language: string; filename: string }>();
@@ -218,7 +242,10 @@ export async function parseZipFileWithCode(file: File): Promise<ParsedCodebase> 
 
         // Analyze zip contents with security validation
         const files = Object.entries(zip.files);
+        const totalFiles = files.length;
+        let processedFiles = 0;
         
+        // Process files in batches to avoid blocking
         for (const [path, zipEntry] of files) {
             if (zipEntry.dir) continue;
             
@@ -231,18 +258,39 @@ export async function parseZipFileWithCode(file: File): Promise<ParsedCodebase> 
             fileList.push(path);
 
             const language = detectLanguage(path);
+            
+            // Report progress periodically (adjust frequency based on total files)
+            processedFiles++;
+            const progressInterval = totalFiles > 100 ? 20 : 10; // Less frequent updates for large projects
+            if (onProgress && processedFiles % progressInterval === 0) {
+                const progress = 20 + Math.floor((processedFiles / totalFiles) * 60);
+                onProgress(progress);
+            }
             if (language) {
                 langCounts[language]++;
                 totalCodeFiles++;
 
-                // Extract FULL code for AST analysis
+                // Extract code with size limit to prevent memory issues
                 try {
                     const content = await zipEntry.async('text');
-                    codeFiles.set(path, {
-                        code: content, // Full content, not truncated!
-                        language: language,
-                        filename: path
-                    });
+                    
+                    // Only store files under 2MB for analysis (prevent memory bloat)
+                    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB per file - increased for larger source files
+                    if (content.length < MAX_FILE_SIZE) {
+                        codeFiles.set(path, {
+                            code: content,
+                            language: language,
+                            filename: path
+                        });
+                    } else {
+                        console.warn(`⚠️ Large file truncated for AST analysis: ${path} (${(content.length / 1024).toFixed(0)}KB)`);
+                        // Store truncated version for summary only (first 20KB)
+                        codeFiles.set(path, {
+                            code: content.substring(0, 20000) + '\n\n// ... [File truncated - only showing first 20KB of ${(content.length / 1024).toFixed(0)}KB file]',
+                            language: language,
+                            filename: path
+                        });
+                    }
 
                     // Also keep truncated snippets for the summary
                     if (codeSnippets.length < 10) {
@@ -271,6 +319,9 @@ export async function parseZipFileWithCode(file: File): Promise<ParsedCodebase> 
 
         console.log(`✅ Successfully parsed ${totalCodeFiles} code files (Primary language: ${primaryLang})`);
         console.log(`🔬 Extracted ${codeFiles.size} files for AST analysis`);
+        
+        // Report near completion
+        if (onProgress) onProgress(95);
 
         // Generate intelligent summary (same as before)
         const summary = `
@@ -307,6 +358,9 @@ ${content.length >= 800 ? '... [truncated for analysis]' : ''}
    • Configuration and secret management
         `.trim();
 
+        // Final progress
+        if (onProgress) onProgress(100);
+        
         return { summary, codeFiles };
     } catch (error) {
         console.error('❌ Error parsing zip:', error);

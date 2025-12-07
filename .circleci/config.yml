@@ -1,0 +1,75 @@
+# CyberForge Security Scan for CircleCI
+
+version: 2.1
+
+orbs:
+  node: circleci/node@5.1.0
+
+jobs:
+  cyberforge-scan:
+    docker:
+      - image: cimg/node:18.0
+    steps:
+      - checkout
+      
+      - run:
+          name: Install CyberForge CLI
+          command: npm install -g @cyberforge/cli
+      
+      - run:
+          name: Run Security Scan
+          command: |
+            cyberforge scan \
+              --path . \
+              --format json \
+              --output /tmp/cyberforge-results.json \
+              --fail-on-severity high
+          no_output_timeout: 15m
+      
+      - run:
+          name: Generate SARIF Report
+          command: |
+            cyberforge sarif \
+              --input /tmp/cyberforge-results.json \
+              --output /tmp/cyberforge-results.sarif
+          when: always
+      
+      - store_artifacts:
+          path: /tmp/cyberforge-results.json
+          destination: security-scan/results.json
+      
+      - store_artifacts:
+          path: /tmp/cyberforge-results.sarif
+          destination: security-scan/results.sarif
+      
+      - store_test_results:
+          path: /tmp/cyberforge-results.json
+      
+      - run:
+          name: Check for Critical Vulnerabilities
+          command: |
+            CRITICAL=$(jq -r '.summary.critical // 0' /tmp/cyberforge-results.json)
+            HIGH=$(jq -r '.summary.high // 0' /tmp/cyberforge-results.json)
+            
+            echo "🔴 Critical: $CRITICAL"
+            echo "🟠 High: $HIGH"
+            
+            if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+              echo "❌ Critical or High severity vulnerabilities detected!"
+              exit 1
+            fi
+            
+            echo "✅ No critical vulnerabilities found"
+          when: always
+
+workflows:
+  security-check:
+    jobs:
+      - cyberforge-scan:
+          context: cyberforge
+          filters:
+            branches:
+              only:
+                - main
+                - develop
+                - /feature\/.*/

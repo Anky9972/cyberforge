@@ -6,6 +6,9 @@ import type { CKGData, CKGNode, CKGEdge } from '../types';
 // Dynamic imports for Node.js-only modules (tree-sitter has native bindings)
 let PythonASTAnalyzer: any;
 let JavaASTAnalyzer: any;
+let GoASTAnalyzer: any;
+let RustASTAnalyzer: any;
+let PHPASTAnalyzer: any;
 
 // Only import in Node.js environment (not browser)
 if (typeof process !== 'undefined' && process.versions && process.versions.node) {
@@ -18,6 +21,21 @@ if (typeof process !== 'undefined' && process.versions && process.versions.node)
         JavaASTAnalyzer = require('./javaAstAnalyzer').JavaASTAnalyzer;
     } catch (e) {
         console.warn('⚠️ Java AST analyzer not available');
+    }
+    try {
+        GoASTAnalyzer = require('./goAstAnalyzer').GoASTAnalyzer;
+    } catch (e) {
+        console.warn('⚠️ Go AST analyzer not available');
+    }
+    try {
+        RustASTAnalyzer = require('./rustAstAnalyzer').RustASTAnalyzer;
+    } catch (e) {
+        console.warn('⚠️ Rust AST analyzer not available');
+    }
+    try {
+        PHPASTAnalyzer = require('./phpAstAnalyzer').PHPASTAnalyzer;
+    } catch (e) {
+        console.warn('⚠️ PHP AST analyzer not available');
     }
 }
 
@@ -42,6 +60,9 @@ interface FunctionInfo {
 export class ASTAnalyzer {
     private pythonAnalyzer?: any;
     private javaAnalyzer?: any;
+    private goAnalyzer?: any;
+    private rustAnalyzer?: any;
+    private phpAnalyzer?: any;
 
     constructor() {
         // Lazy initialization to handle optional dependencies
@@ -62,6 +83,33 @@ export class ASTAnalyzer {
         } catch (error) {
             console.warn('⚠️ Java AST analyzer unavailable (java-parser not installed)');
         }
+
+        try {
+            if (GoASTAnalyzer) {
+                this.goAnalyzer = new GoASTAnalyzer();
+                console.log('✅ Go AST analyzer initialized');
+            }
+        } catch (error) {
+            console.warn('⚠️ Go AST analyzer unavailable');
+        }
+
+        try {
+            if (RustASTAnalyzer) {
+                this.rustAnalyzer = new RustASTAnalyzer();
+                console.log('✅ Rust AST analyzer initialized');
+            }
+        } catch (error) {
+            console.warn('⚠️ Rust AST analyzer unavailable');
+        }
+
+        try {
+            if (PHPASTAnalyzer) {
+                this.phpAnalyzer = new PHPASTAnalyzer();
+                console.log('✅ PHP AST analyzer initialized');
+            }
+        } catch (error) {
+            console.warn('⚠️ PHP AST analyzer unavailable');
+        }
     }
 
     /**
@@ -76,6 +124,12 @@ export class ASTAnalyzer {
             return this.pythonAnalyzer.analyzePythonCode(code, filename);
         } else if (lang.includes('java') && this.javaAnalyzer) {
             return this.javaAnalyzer.analyzeJavaCode(code, filename);
+        } else if (lang.includes('go') && this.goAnalyzer) {
+            return this.goAnalyzer.analyzeGoCode(code, filename);
+        } else if (lang.includes('rust') && this.rustAnalyzer) {
+            return this.rustAnalyzer.analyzeRustCode(code, filename);
+        } else if (lang.includes('php') && this.phpAnalyzer) {
+            return this.phpAnalyzer.analyzePHPCode(code, filename);
         } else {
             // Fallback for unsupported languages
             return this.fallbackAnalysis(code, filename, language);

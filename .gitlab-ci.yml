@@ -1,0 +1,104 @@
+# CyberForge Security Scan for GitLab CI/CD
+
+stages:
+  - security
+  - report
+
+variables:
+  CYBERFORGE_API_URL: "${CI_CYBERFORGE_API_URL:-http://localhost:3002}"
+  FAIL_ON_SEVERITY: "high"  # Options: critical, high, medium, low
+
+cyberforge_scan:
+  stage: security
+  image: node:18
+  before_script:
+    - npm install -g @cyberforge/cli
+  script:
+    - |
+      echo "🔍 Running CyberForge security scan..."
+      cyberforge scan \
+        --path . \
+        --format json \
+        --output cyberforge-results.json \
+        --fail-on-severity ${FAIL_ON_SEVERITY} || SCAN_FAILED=true
+      
+      # Generate SARIF for GitLab Security Dashboard
+      cyberforge sarif \
+        --input cyberforge-results.json \
+        --output gl-sast-report.json
+      
+      if [ "$SCAN_FAILED" = "true" ]; then
+        echo "❌ Security vulnerabilities detected!"
+        exit 1
+      fi
+  artifacts:
+    reports:
+      sast: gl-sast-report.json
+    paths:
+      - cyberforge-results.json
+      - gl-sast-report.json
+    expire_in: 30 days
+    when: always
+  allow_failure: false
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+cyberforge_report:
+  stage: report
+  image: node:18
+  dependencies:
+    - cyberforge_scan
+  script:
+    - |
+      echo "📊 Generating security report..."
+      
+      # Parse results and create summary
+      if [ -f cyberforge-results.json ]; then
+        CRITICAL=$(jq -r '.summary.critical // 0' cyberforge-results.json)
+        HIGH=$(jq -r '.summary.high // 0' cyberforge-results.json)
+        MEDIUM=$(jq -r '.summary.medium // 0' cyberforge-results.json)
+        LOW=$(jq -r '.summary.low // 0' cyberforge-results.json)
+        
+        echo "## 🔒 CyberForge Security Summary"
+        echo "- 🔴 Critical: $CRITICAL"
+        echo "- 🟠 High: $HIGH"
+        echo "- 🟡 Medium: $MEDIUM"
+        echo "- 🟢 Low: $LOW"
+        
+        if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+          echo "⚠️ Action required: Critical or High severity issues found!"
+        else
+          echo "✅ No critical vulnerabilities detected"
+        fi
+      fi
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  when: always
+
+# Optional: Incremental scan for MRs (faster)
+cyberforge_incremental:
+  stage: security
+  image: node:18
+  before_script:
+    - npm install -g @cyberforge/cli
+  script:
+    - |
+      echo "🔍 Running incremental scan on changed files..."
+      
+      # Get list of changed files
+      git diff --name-only $CI_MERGE_REQUEST_DIFF_BASE_SHA...$CI_COMMIT_SHA > changed_files.txt
+      
+      # Scan only changed files
+      cyberforge scan \
+        --files-from changed_files.txt \
+        --format json \
+        --output cyberforge-incremental.json
+  artifacts:
+    paths:
+      - cyberforge-incremental.json
+    expire_in: 7 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  allow_failure: true
